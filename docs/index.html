@@ -449,7 +449,12 @@ var INTRADAY_LOADED=false,INTRADAY_FAILS=0,INTRADAY_LAST_HTML=null,INTRADAY_LAST
 async function loadIntraday(force){
   if(!D||!D.amount_bench)return;
   if(INTRADAY_LOADED&&!isTradingNow()&&!force)return;
-  if(INTRADAY_FAILS&&!isTradingNow()&&!force)return;   // 源故障且非盘中，别反复打
+  /* ★ 2026-11-04（专家审查指出）：原来写的是 `if(INTRADAY_FAILS&&...)`，
+     一旦首次拉取失败，非交易时段的所有自动重试都会被这行直接拦掉，
+     与页面提示的「5 分钟后自动重试」矛盾，且永远无法自愈。
+     改为最多允许 6 次（6×5 分钟＝30 分钟）退避重试：既保留「盘后别反复打接口」
+     的原意，又能在数据源恢复后自动补回曲线；成功后 INTRADAY_FAILS 会清零。 */
+  if(INTRADAY_FAILS>=6&&!isTradingNow()&&!force)return;
   var list=QCFG.filter(function(q){return q.grp==="in"});
   var res=await Promise.all(list.map(async function(q){
     var s=symOf(q.code);

@@ -144,6 +144,22 @@ def update_shares(base):
             if row is None:
                 failed.append(dt)
                 continue
+            # ★ 2026-11-04（专家审查指出）：上交所 T 日份额于 T+1 才公布，
+            #   因此「今天」查回来必然是空数组，sse_one_day 会返回 {"_holiday": True}。
+            #   若照写进 shares.json（已入库），每次跑脚本都会产生一条无意义的 git diff。
+            #   近 2 天内的空结果不写盘 ⇒ 该日期仍不在 base 里 ⇒ todo 每天自动重试，
+            #   份额公布后自然补上；自愈能力不变，但不会再污染缓存文件。
+            #   ⚠️ 不采纳「>3 天仍为空就固化 _holiday」：那会把接口临时故障的
+            #      真实交易日永久误标成节假日，比 git diff 严重得多。
+            if row.get("_holiday"):
+                try:
+                    _bj = (datetime.datetime.utcnow()
+                           + datetime.timedelta(hours=8)).date()
+                    _gap = (_bj - datetime.datetime.strptime(dt, "%Y%m%d").date()).days
+                    if _gap <= 2:
+                        continue
+                except (TypeError, ValueError):
+                    pass
             base[dt] = row
             if not row.get("_holiday"):
                 ok += 1

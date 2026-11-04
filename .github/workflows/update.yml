@@ -1,0 +1,95 @@
+name: 国家队持仓 · 数据更新
+
+# 盘中实时行情由页面浏览器直连腾讯行情完成，不消耗 CI。
+# 本工作流只负责「盘后/次日抓上交所新公布的份额 → 重算净流入与全部统计 → 写回 docs/」。
+#
+# ⚠️ GitHub schedule 是尽力而为：高负载时可能延后或整次丢弃，故设两个时间点兜底。
+#    若不需要自动更新，删掉 schedule 两行即可，页面仍可手动触发。
+# ⚠️ push 触发只监听脚本与工作流自身，刻意排除 docs/ —— 否则本工作流提交数据会再次触发自己，形成死循环。
+#    首次 push 时这两个文件必然在变更里，正好用来验证境外 runner 的数据源可达性。
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 0 * * 1-5"     # UTC 00:30 = 北京 08:30，抓前一交易日已公布的份额
+    - cron: "30 4 * * 1-5"     # UTC 04:30 = 北京 12:30，兜底
+  push:
+    branches: [main]
+    paths:
+      - "scripts/update.py"
+      - ".github/workflows/update.yml"
+
+concurrency:
+  group: national-team-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 准备 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install "requests==2.32.3"
+          python -c "import sys,requests;print('ENV OK',sys.version.split()[0],'requests',requests.__version__)"
+
+      # 只诊断、不阻断：update.py 自带容错，任一源不可达会保留基线并写 warning。
+      # 这一步的输出是判断「境外 runner 能否访问境内数据接口」的依据。
+      - name: 数据源连通性探测
+        continue-on-error: true
+        env:
+          TZ: Asia/Shanghai
+        run: |
+          echo "== 北京时间 ==" && date
+          echo "== 上交所份额接口（2026-11-03 已知有效日） =="
+          curl -sS --max-time 25 -o /tmp/sse.json -w "HTTP %{http_code} | %{size_download} bytes | %{time_total}s\n" \
+            -H "Referer: https://www.sse.com.cn/" -H "User-Agent: Mozilla/5.0" \
+            "https://query.sse.com.cn/commonQuery.do?isPagination=true&pageHelp.pageSize=10000&pageHelp.pageNo=1&pageHelp.beginPage=1&pageHelp.cacheSize=1&pageHelp.endPage=1&sqlId=COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L&STAT_DATE=2026-11-03" \
+            || echo "SSE FAIL"
+          python -c "import json;d=json.load(open('/tmp/sse.json'));print('SSE result rows =',len(d.get('result',[])))" 2>/dev/null || echo "SSE parse failed"
+          echo "== 新浪日线 =="
+          curl -sS --max-time 20 -o /tmp/sina.json -w "HTTP %{http_code} | %{size_download} bytes\n" \
+            -H "Referer: https://finance.sina.com.cn" -H "User-Agent: Mozilla/5.0" \
+            "https://money.finance.sina.com.cn/quotes_service/api/json_v2.php/CN_MarketData.getKLineData?symbol=sh510300&scale=240&ma=no&datalen=5" \
+            || echo "SINA FAIL"
+          head -c 160 /tmp/sina.json 2>/dev/null; echo ""
+          echo "== 腾讯实时快照 =="
+          curl -sS --max-time 20 -o /tmp/tx.txt -w "HTTP %{http_code} | %{size_download} bytes\n" \
+            "https://qt.gtimg.cn/q=sh510300" || echo "TX FAIL"
+          head -c 120 /tmp/tx.txt 2>/dev/null; echo ""
+
+      - name: 重算数据与统计
+        env:
+          TZ: Asia/Shanghai
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python scripts/update.py
+          echo "--- 产物 ---"
+          ls -lh docs/
+          python -c "import json;s=json.load(open('docs/state.json'));print('STATE',json.dumps(s,ensure_ascii=False))"
+
+      - name: 提交并推送（Pages 自动更新）
+        run: |
+          git config user.name  "national-team-bot"
+          git config user.email "national-team-bot@users.noreply.github.com"
+          git add docs/data.json docs/state.json data/shares.json data/nav.json
+          if git diff --cached --quiet; then
+            echo "数据无变化，跳过提交"
+          else
+            git commit -m "chore: 国家队持仓数据 $(TZ=Asia/Shanghai date +%F) $(TZ=Asia/Shanghai date +%H:%M) CST"
+            git pull --rebase origin main || true
+            git push
+          fi
+      # update.py 失败时本作业报错终止，docs/ 保持上一版 ⇒ Pages 继续显示上一份可用数据

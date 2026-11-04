@@ -1,0 +1,21 @@
+{
+  "name": "国家队持仓 · 重点ETF资金看板",
+  "short_name": "国家队持仓",
+  "description": "宽基 ETF 份额变动推算净流入、分风格拆解、盘中实时行情与信号效力复核",
+  "lang": "zh-CN",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0f14",
+  "theme_color": "#0b0f14",
+  "categories": ["finance", "business"],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0f14'/%3E%3Cpath d='M12 44V27h8v17zm12 0V18h8v26zm12 0V33h8v11z' fill='%23f2545b'/%3E%3C/svg%3E",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

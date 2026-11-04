@@ -71,6 +71,9 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
 .pbar{display:inline-block;width:48px;height:6px;background:#22303e;border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:6px}
 .pbar i{display:block;height:100%;background:var(--teal);opacity:.85}
 .heatcell{text-align:right;font-variant-numeric:tabular-nums;padding:5px 7px;border-radius:2px;font-size:11.5px}
+#tip{position:fixed;display:none;z-index:200;background:#0f151c;border:1px solid #35506e;
+  border-radius:6px;padding:6px 9px;font-size:11.5px;color:#e6edf3;pointer-events:none;
+  box-shadow:0 4px 14px rgba(0,0,0,.5);white-space:nowrap;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body><div class="wrap">
@@ -100,9 +103,16 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
   <div class="scroll"><table id="qt"><thead><tr>
     <th>标的</th><th>代码</th><th class="n">现价</th><th class="n">涨跌幅</th>
     <th class="n">成交额(亿)</th><th class="n">占比</th><th class="n">换手</th><th class="n">规模(亿)</th><th>快照时间</th>
-  </tr></thead><tbody id="qbody"><tr><td colspan="8" class="dim">载入中…</td></tr></tbody></table></div>
+  </tr></thead><tbody id="qbody"><tr><td colspan="9" class="dim">载入中…</td></tr></tbody></table></div>
 </div>
 <div class="note" id="qsum"></div>
+<div class="panel">
+  <h3>今日分时累计成交额 · 16 只篮内 ETF 合计</h3>
+  <div class="note" style="margin:2px 0 7px">真实分钟数据（腾讯分时接口，每 60 秒刷新）。
+  <b>不做「按交易分钟平摊」折算</b>——ETF 日内成交呈 U 型，以 510300 为例实测 10:00 实际累计占全日 17.8%
+  而线性假设只有 12.5%，平摊会把倍数虚高 1.43 倍。这里只给真实累计曲线与全日均值水平线。</div>
+  <div id="intraday"></div>
+</div>
 
 <h2>二 · 最新已确认净流入 <small>CONFIRMED · 份额口径</small></h2>
 <div class="kpi" id="kpi"></div>
@@ -120,8 +130,19 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
     <div id="c2"></div></div>
 </div>
 
+<div class="panel">
+  <h3>历史单日净流入 Top 20 <small style="color:var(--dim);font-weight:400">· 全宽基 16 只口径</small></h3>
+  <div class="note" style="margin:2px 0 7px">用来判断「最新这波流入在 11 年历史上排第几」。
+  <b>「簇起点」</b>指该日是「单日净流入 &gt; 100 亿」事件按 20 交易日间隔去重后的第一次放量；
+  连续多日放量后的第 N 次属于簇内重复触发，参考价值显著下降（见模块五）。</div>
+  <div class="scroll"><table>
+    <thead><tr><th>排名</th><th>日期</th><th class="n">全宽基(亿)</th><th class="n">沪深300(亿)</th>
+      <th class="n">上证</th><th class="n">滚动分位</th><th>簇起点</th></tr></thead>
+    <tbody id="topdays"></tbody></table></div>
+</div>
+
 <h2>四 · 分风格资金去向 <small>STYLE</small></h2>
-<div class="panel"><div id="c3"></div></div>
+<div class="panel"><div class="legend" id="c3legend"></div><div id="c3"></div></div>
 <div class="note" id="stynote"></div>
 <div class="panel">
   <h3>最近 20 个交易日 · 分风格逐日净流入（亿元）</h3>
@@ -156,7 +177,7 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
     <div class="note" style="margin:2px 0 7px">窄篮子里 80 亿就已转正 —— 同一数字在不同宽度的篮子里含义不同。</div>
     <table><thead><tr><th>单日净流入</th><th class="n">事件</th><th class="n">簇</th>
       <th class="n">簇 T+20</th><th class="n">胜率</th></tr></thead>
-      <tbody id="ScanC300"></tbody></table></div>
+      <tbody id="scanC300"></tbody></table></div>
 </div>
 <div class="two" style="margin-top:12px">
   <div class="panel"><h3>滚动分位五档 · 全宽基 16 只</h3>
@@ -211,6 +232,7 @@ sqlId <code>COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L</code>）、新浪财经�
 </footer>
 </div>
 
+<div id="tip"></div>
 <div id="fab">
   <button class="btn" onclick="loadQuotes(true)">🔄 实时行情</button>
   <button class="btn pri" onclick="togglePanel()">☁️ 重算数据</button>
@@ -405,6 +427,89 @@ function scheduleQuotes(){
   },1000);
 }
 
+/* ===== 轻量浮层 Tooltip：原生 <title> 需停顿约 0.5s，这里做即时跟随 ===== */
+document.addEventListener("mousemove",function(e){
+  var tip=$("tip"); if(!tip)return;
+  var el=(e.target&&e.target.closest)?e.target.closest("[data-tip]"):null;
+  if(!el){tip.style.display="none";return}
+  tip.textContent=el.getAttribute("data-tip");
+  tip.style.display="block";
+  var x=e.clientX+14,y=e.clientY+14;
+  if(x+tip.offsetWidth>window.innerWidth-10)x=e.clientX-tip.offsetWidth-14;
+  if(y+tip.offsetHeight>window.innerHeight-10)y=e.clientY-tip.offsetHeight-14;
+  tip.style.left=x+"px";tip.style.top=y+"px";
+});
+
+/* ===== 当日分时累计成交额（真实分钟数据，不做时间段平摊折算） ===== */
+var INTRADAY_LOADED=false;
+async function loadIntraday(force){
+  if(!D||!D.amount_bench)return;
+  if(INTRADAY_LOADED&&!isTradingNow()&&!force)return;
+  var list=QCFG.filter(function(q){return q.grp==="in"});
+  var res=await Promise.all(list.map(async function(q){
+    var s=symOf(q.code);
+    try{
+      var r=await fetch("https://web.ifzq.gtimg.cn/appstock/app/minute/query?code="+s+"&t="+Date.now(),
+                        {cache:"no-store"});
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      var j=await r.json();
+      return (j.data&&j.data[s]&&j.data[s].data&&j.data[s].data.data)||[];
+    }catch(e){return []}
+  }));
+  var ok=res.filter(function(a){return a&&a.length}).length;
+  var m={};
+  res.forEach(function(arr){arr.forEach(function(line){
+    var p=line.split(" ");if(p.length<4)return;
+    var v=parseFloat(p[3]);if(!isFinite(v))return;
+    m[p[0]]=(m[p[0]]||0)+v/1e8;                 // 元 → 亿元
+  })});
+  var times=Object.keys(m).sort();
+  if(times.length<10){
+    $("intraday").innerHTML='<div class="err">分时数据暂不可用（取到 '+ok+"/"+list.length+
+      " 只）。不影响上方实时快照与历史数据。</div>";return;
+  }
+  INTRADAY_LOADED=true;
+  var vals=times.map(function(t){return m[t]}),cur=vals[vals.length-1];
+  var bench=D.amount_bench.avg20,top=Math.max(cur,bench)*1.12;
+  var w=1100,h=220,pl=56,pr=14,pt=14,pb=28,iw=w-pl-pr,ih=h-pt-pb;
+  var X=function(i){return pl+iw*i/Math.max(1,times.length-1)};
+  var Y=function(v){return pt+ih*(1-v/top)};
+  var o=[];
+  [0,.25,.5,.75,1].forEach(function(t){
+    var v=top*t,y=Y(v);
+    o.push('<line x1="'+pl+'" y1="'+f(y,1)+'" x2="'+(pl+iw)+'" y2="'+f(y,1)+
+      '" stroke="'+C.line+'" stroke-width=".6"/>');
+    o.push('<text x="'+(pl-5)+'" y="'+f(y+3,1)+'" fill="'+C.dim+
+      '" font-size="9" text-anchor="end">'+f(v,0)+"</text>");
+  });
+  // 近 20 日全日日均水平参考线（不是「同期基线」，只作全天量级的水平参照）
+  if(bench<top)o.push('<line x1="'+pl+'" y1="'+f(Y(bench),1)+'" x2="'+(pl+iw)+'" y2="'+f(Y(bench),1)+
+    '" stroke="'+C.gold+'" stroke-width="1.1" stroke-dasharray="5 4" opacity=".85"><title>近20日全日日均 '+
+    f(bench,1)+' 亿</title></line>');
+  o.push('<polyline points="'+vals.map(function(v,i){return f(X(i),1)+","+f(Y(v),1)}).join(" ")+
+    '" fill="none" stroke="'+C.teal+'" stroke-width="1.8"/>');
+  ["0930","1030","1130","1400","1500"].forEach(function(t){
+    var i=times.indexOf(t);if(i<0)return;
+    o.push('<line x1="'+f(X(i),1)+'" y1="'+pt+'" x2="'+f(X(i),1)+'" y2="'+(pt+ih)+
+      '" stroke="'+C.line+'" stroke-width=".5" opacity=".6"/>');
+    o.push('<text x="'+f(X(i),1)+'" y="'+(h-9)+'" fill="'+C.dim+
+      '" font-size="9" text-anchor="middle">'+t.slice(0,2)+":"+t.slice(2)+"</text>");
+  });
+  var step=Math.max(1,Math.floor(times.length/90));
+  for(var i=0;i<times.length;i+=step){
+    var t=times[i],x1=X(i),x2=X(Math.min(times.length-1,i+step));
+    var tip=t.slice(0,2)+":"+t.slice(2)+" · 累计 "+f(vals[i],1)+" 亿 · 全日均值的 "+
+      f(vals[i]/bench*100,1)+"%";
+    o.push('<rect x="'+f(x1,1)+'" y="'+pt+'" width="'+f(Math.max(1,x2-x1),1)+'" height="'+ih+
+      '" fill="transparent" data-tip="'+esc(tip)+'"><title>'+tip+"</title></rect>");
+  }
+  $("intraday").innerHTML='<div class="note" style="margin:0 0 6px">当前累计 <b>'+f(cur,1)+
+    " 亿</b>（取到 "+ok+"/"+list.length+" 只） · 近20日<b>全日</b>日均 "+f(bench,1)+
+    " 亿 ⇒ 已完成全日均值的 <b>"+f(cur/bench*100,1)+"%</b>"+
+    " · <span class='dim'>这是「占全日均值比例」，不是「同期同比倍数」；"+
+    "ETF 日内成交呈 U 型，按分钟平摊折算会失真</span></div>"+svg(w,h,o.join(""));
+}
+
 /* ====================== 图表（SVG 自绘） ====================== */
 function svg(w,h,inner){return '<svg viewBox="0 0 '+w+" "+h+'" class="chart" preserveAspectRatio="none">'+inner+"</svg>"}
 function sy(v){
@@ -432,11 +537,11 @@ function chartDaily(rows){
   var bw=Math.max(1.0,iw/R.length*.62);
   R.forEach(function(r,i){
     var y0=Y(0),y1=Y(r.nf);
+    var tip=ds8(r.d)+" · 净流入 "+f(r.nf,1,true)+" 亿 · 沪深300 "+f(r.nf300,1,true)+
+      " 亿 · 上证 "+f(r.idx,2)+(r.sup?" · 触发滚动95分位":"");
     o.push('<rect x="'+f(X(i)-bw/2,1)+'" y="'+f(Math.min(y0,y1),1)+'" width="'+f(Math.max(1.6,bw),1)+
       '" height="'+f(Math.max(.8,Math.abs(y1-y0)),1)+'" fill="'+(r.nf>0?C.red:C.green)+
-      '" opacity="'+(r.sup ? 0.95 : 0.62)+'"><title>'+ds8(r.d)+" · 净流入 "+f(r.nf,1,true)+
-      " 亿 · 沪深300 "+f(r.nf300,1,true)+" 亿 · 上证 "+f(r.idx,2)+
-      (r.sup?" · 触发滚动95分位":"")+"</title></rect>");
+      '" opacity="'+(r.sup ? 0.95 : 0.62)+'" data-tip="'+esc(tip)+'"><title>'+tip+"</title></rect>");
   });
   var idx=R.map(function(r){return r.idx}),mn=Math.min.apply(null,idx),mx=Math.max.apply(null,idx);
   var pts=R.map(function(r,i){return f(X(i),1)+","+f(pt+12+(ih-24)*(1-(r.idx-mn)/Math.max(1e-9,mx-mn)),1)}).join(" ");
@@ -488,10 +593,10 @@ function chartCum(rows){
   var step=Math.max(1,Math.floor(rows.length/120));
   for(var i=0;i<rows.length;i+=step){
     var r=rows[i],x1=X(i),x2=X(Math.min(rows.length-1,i+step));
+    var tip=ds8(r.d)+" · 累计(16只) "+f(ca[i],0,true)+" 亿 · 累计(300八只) "+
+      f(c3[i],0,true)+" 亿 · 当日 "+f(r.nf,1,true)+" 亿 · 上证 "+f(r.idx,2);
     o.push('<rect x="'+f(x1,1)+'" y="'+pt+'" width="'+f(Math.max(1,x2-x1),1)+'" height="'+ih+
-      '" fill="transparent"><title>'+ds8(r.d)+" · 累计(16只) "+f(ca[i],0,true)+
-      " 亿 · 累计(300八只) "+f(c3[i],0,true)+" 亿 · 当日 "+f(r.nf,1,true)+
-      " 亿 · 上证 "+f(r.idx,2)+"</title></rect>");
+      '" fill="transparent" data-tip="'+esc(tip)+'"><title>'+tip+"</title></rect>");
   }
   return svg(w,h,o.join(""));
 }
@@ -524,9 +629,10 @@ function chartStyle(months,styles){
     var cx=pl+slot*(i+.5);
     styles.forEach(function(s,j){
       var v=m.by[s],yy=Y(v);
+      var tip=m.m.slice(0,4)+"-"+m.m.slice(4)+" · "+s+" "+f(v,1,true)+" 亿";
       o.push('<rect x="'+f(cx-slot/2+j*bw,1)+'" y="'+f(Math.min(y0,yy),1)+'" width="'+f(Math.max(.8,bw-.4),1)+
-        '" height="'+f(Math.max(.8,Math.abs(yy-y0)),1)+'" fill="'+SCOLOR[s]+'" opacity=".82"><title>'+
-        m.m.slice(0,4)+"-"+m.m.slice(4)+" · "+s+" "+f(v,1,true)+" 亿</title></rect>");
+        '" height="'+f(Math.max(.8,Math.abs(yy-y0)),1)+'" fill="'+SCOLOR[s]+
+        '" opacity=".82" data-tip="'+esc(tip)+'"><title>'+tip+"</title></rect>");
     });
     if(i%3===0)o.push('<text x="'+f(cx,1)+'" y="'+(h-10)+'" fill="'+C.dim+
       '" font-size="9" text-anchor="middle">'+m.m.slice(2,4)+"/"+m.m.slice(4)+"</text>");
@@ -555,34 +661,48 @@ function render(D){
   var k=D.kpi;
   $("asof").textContent="份额数据截至 "+ds8(D.asof)+" · 样本 "+D.sample_days+" 个交易日";
   $("disc2").innerHTML="当前确认值日期：<b>"+ds8(D.asof)+"</b>。";
-  // 净流出日不能算「占全宽基 XX%」（会出现 -300% 这类无意义数字），也不能说「多风格一起进」
-  var posAll=k.nf>0, ratio=posAll?k.nf300/k.nf*100:null;
-  var sub300=posAll?"占全宽基 "+f(ratio,0)+"%":"全宽基当日净流出";
+  // 占比只在「全宽基为正 且 300 为正 且 300 不超过总额」时才有意义。
+  // 反例：全宽基 +10 亿而 300 +80 亿（其余风格 -70 亿）⇒ 800%；
+  //       全宽基 +50 亿而 300 -20 亿 ⇒ -40% 并误触「多风格同步流入」。
+  var posAll=k.nf>0, sameDir=posAll&&k.nf300>0&&k.nf300<=k.nf;
+  var ratio=sameDir?k.nf300/k.nf*100:null;
+  var sub300,structNote;
   var sub20=(k.share300_20===null||k.share300_20===undefined)
-      ?"近20日净流出 · 占比不适用":"300 占 "+f(k.share300_20,0)+"%";
+      ?"近20日占比不适用":"300 占 "+f(k.share300_20,0)+"%";
+  if(!posAll){
+    sub300="全宽基当日净流出";
+    structNote="<b>当日全宽基为净流出/结构分化</b>，占比与「多风格一起进」均不适用；直接看下方各风格的正负号判断谁在流出。";
+  }else if(k.nf300<0){
+    sub300="300 逆势流出";
+    structNote="<b>沪深300 逆势净流出、其余风格净流入</b>（全宽基 "+f(k.nf,1,true)+
+      " 亿 / 300 "+f(k.nf300,1,true)+" 亿）⇒ 资金明显偏向非权重风格，占比口径不适用。";
+  }else if(k.nf300>k.nf){
+    sub300="300 单边流入";
+    structNote="<b>沪深300 单边流入、其余风格合计净流出</b>（全宽基 "+f(k.nf,1,true)+
+      " 亿 / 300 "+f(k.nf300,1,true)+" 亿）⇒ 典型权重护盘结构，不能说成「多风格共振」。";
+  }else if(ratio<50){
+    sub300="占全宽基 "+f(ratio,0)+"%";
+    structNote="<b>300 占比 "+f(ratio,0)+"% 低于一半 ⇒ 多风格同步流入</b>，不能按「国家队只买 300」解读。";
+  }else{
+    sub300="占全宽基 "+f(ratio,0)+"%";
+    structNote="<b>300 占比 "+f(ratio,0)+"% 过半 ⇒ 当日资金集中在沪深300</b>，但这只是结构描述，不等于看多信号（见第五部分）。";
+  }
+  // KPI 必须在 sub300 分支算完之后再渲染（顺序颠倒会显示 undefined）
   $("kpi").innerHTML=
     card("全宽基 16 只 · 净流入",f(k.nf,1,true)+" 亿",k.pct.toFixed(0)+"% 分位 · 阈值 "+f(k.thr,1)+" 亿",k.nf>0?"up":"down")+
     card("沪深300 八只 · 净流入",f(k.nf300,1,true)+" 亿",sub300,"")+
     card("篮子规模",f(k.aum,0)+" 亿","强度 "+f(k.inten,2,true)+"%","")+
     card("上证综指",f(k.idx,2),"截至 "+ds8(D.asof),"")+
     card("近 20 日累计",f(k.sum20,0,true)+" 亿",sub20,k.sum20>0?"up":"down");
-  var structNote;
-  if(!posAll){
-    structNote="<b>当日全宽基为净流出/结构分化</b>，占比与「多风格一起进」均不适用；直接看下方各风格的正负号判断谁在流出。";
-  }else if(ratio<50){
-    structNote="<b>300 占比 "+f(ratio,0)+"% 低于一半 ⇒ 多风格同步流入</b>，不能按「国家队只买 300」解读。";
-  }else{
-    structNote="<b>300 占比 "+f(ratio,0)+"% 过半 ⇒ 当日资金集中在沪深300</b>，但这只是结构描述，不等于看多信号（见第五部分）。";
-  }
   $("kpnote").innerHTML="分风格（当日，亿）："+D.styles.map(function(s){
     return s+" <b class='"+(k.by[s]>0?"up":"down")+"'>"+f(k.by[s],1,true)+"</b>"}).join(" · ")+
     "。"+structNote;
   $("c1").innerHTML=chartDaily(D.rows);
   $("c2").innerHTML=chartCum(D.rows);
   $("c3").innerHTML=chartStyle(D.style_month,D.styles);
-  $("c3").insertAdjacentHTML("afterbegin",'<div class="legend">'+
-    D.styles.map(function(s){return '<span><i style="background:'+SCOLOR[s]+'"></i>'+s+"</span>"}).join("")+
-    "</div>");
+  // 图例改成静态容器 + 内容赋值，与其他两图一致，且不会出现重复插入的隐患
+  $("c3legend").innerHTML=D.styles.map(function(s){
+    return '<span><i style="background:'+SCOLOR[s]+'"></i>'+s+"</span>"}).join("");
   $("stynote").innerHTML="近 24 个月，每个月的分风格净流入（亿元，<b>对称对数刻度</b>，正上负下；"+
     "2026-01 的极端赎回会把线性轴压平，故用对数）。全历史累计："+
     D.styles.map(function(s){return s+" <b>"+f(k.style_all[s],0,true)+"</b>"}).join(" · ")+" 亿。";
@@ -622,7 +742,7 @@ function render(D){
       "</td><td class='n "+cl+"'>"+f(r.cluster_mean,2,true)+"%</td><td class='n'>"+f(r.cluster_win,0)+"%</td></tr>";
   }
   $("scanAll").innerHTML=D.scan.map(function(x){return scanRow(x,"all")}).join("");
-  $("ScanC300").innerHTML=D.scan.map(function(x){return scanRow(x,"c300")}).join("");
+  $("scanC300").innerHTML=D.scan.map(function(x){return scanRow(x,"c300")}).join("");
   // 分位五档（后端已算，之前漏渲染）
   function quintRows(list){
     return list.map(function(q){
@@ -634,6 +754,13 @@ function render(D){
   $("quintAll").innerHTML=quintRows(D.quint_all);
   $("quint300").innerHTML=quintRows(D.quint_300);
   renderHeat(D);
+  $("topdays").innerHTML=(D.top_days||[]).map(function(x,i){
+    return "<tr"+(x.start?' style="background:rgba(242,84,91,.08)"':"")+"><td>"+(i+1)+
+      "</td><td>"+ds8(x.d)+"</td><td class='n up'>"+f(x.nf,1,true)+
+      "</td><td class='n'>"+f(x.nf300,1,true)+"</td><td class='n'>"+f(x.idx,2)+
+      "</td><td class='n'>"+(x.pct===null||x.pct===undefined?"--":f(x.pct,0)+"%")+
+      "</td><td>"+(x.start?'<span class="badge hot">簇起点</span>':'<span class="dim">—</span>')+"</td></tr>";
+  }).join("");
 
   var rowsHtml="",cur="";
   function ncell(v){return "<td class='n "+(v>0?"up":v<0?"down":"dim")+"'>"+f(v,1,true)+"</td>"}
@@ -722,6 +849,7 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
     var saved=localStorage.getItem("ntGhToken");
     if(saved){$("tok").value=saved;$("tok").placeholder="已保存（可留空直接触发）"}
     loadQuotes(true); scheduleQuotes();
+    loadIntraday(true); setInterval(function(){loadIntraday(false)},60000);
   }catch(e){
     $("qnote").innerHTML='<span class="err">历史数据载入失败：'+esc(e.message)+
       "。请刷新页面重试；若持续失败，检查 data.json 是否随 Pages 发布。</span>";

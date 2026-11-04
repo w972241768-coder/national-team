@@ -189,7 +189,7 @@ def fetch_index():
     return ser
 
 
-def fetch_amount_bench():
+def fetch_amount_bench(last_d):
     """近 20 个交易日「全部 26 只 ETF 合计成交额」基准（亿元，估算值）。
 
     新浪日线 volume 单位为股，amount ≈ volume × close / 1e8。
@@ -214,13 +214,18 @@ def fetch_amount_bench():
                 daily[d] += float(x["volume"]) * float(x["close"]) / 1e8
             except (KeyError, TypeError, ValueError):
                 pass
-    days = sorted(daily)[-21:-1]          # 最近 20 个完整交易日
-    vals = [daily[d] for d in days]
+    # 不能用 sorted(daily)[-21:-1] 无条件砍掉最后一天：
+    #   · 盘前 08:30 / 周末运行时，最后一根是昨天已完整收盘的 K 线，砍掉会白丢一天；
+    #   · 盘中运行时，最后一根可能是当日未收盘的半截成交额，必须排除。
+    # 统一以「最新已确认份额日 last_d」为上界，取 <= last_d 的最近 20 个交易日，
+    # 口径与页面 asof 一致，且不依赖运行时段。
+    valid_days = [d for d in sorted(daily) if d <= last_d][-20:]
+    vals = [daily[d] for d in valid_days]
     if len(vals) < 10:
         return None
     return {"avg20": round(sum(vals) / len(vals), 1),
             "prev": round(vals[-1], 1) if vals else None,
-            "days": len(vals), "missing": missing,
+            "days": len(vals), "last_day": valid_days[-1], "missing": missing,
             "method": "新浪日线成交量 × 收盘价（估算），实测误差约 +1.3%"}
 
 
@@ -474,6 +479,13 @@ def main():
     daily_style = [{"d": r["d"], "by": {s: round(r["by"][s], 1) for s in STYLES}}
                    for r in last20]
     fund_flow = fund_flow_by_code(shares, nav, [r["d"] for r in rows[-21:]])
+    # 历史单日净流入 Top 20，并标出「>100 亿事件」的簇起点（第一次放量参考价值最高）
+    big_starts = {c[0] for c in clus([i for i, r in enumerate(rows) if r["nf"] > 100])}
+    top_days = [{"d": r["d"], "nf": round(r["nf"], 1), "nf300": round(r["nf300"], 1),
+                 "idx": round(r["idx"], 2),
+                 "pct": None if r.get("pct") is None else round(r["pct"], 1),
+                 "start": i in big_starts}
+                for i, r in sorted(enumerate(rows), key=lambda x: -x[1]["nf"])[:20]]
     month_map = {}
     for r in rows:
         m = r["d"][:6]
@@ -496,15 +508,16 @@ def main():
             "by": {k: round(v, 1) for k, v in last["by"].items()},
             "style20": style20, "style_all": style_all,
             "sum20": round(sum20, 0),
-            # 近 20 日合计为净流出时，占比没有意义（会出现 -300% 这类误导数字）
+            # 净流出、300 逆势流出、或 300 超过总额（其余风格净流出）时，占比都没有意义
             "share300_20": (round(style20["沪深300"] / sum20 * 100, 1)
-                            if sum20 > 0 else None),
+                            if sum20 > 0 and 0 <= style20["沪深300"] <= sum20 else None),
         },
         "rows": slim,
         "styles": STYLES,
         "style_month": style_month,
         "daily_style": daily_style,
         "fund_flow": fund_flow,
+        "top_days": top_days,
         "quint_all": quint(rows, "pct"),
         "quint_300": quint(rows, "pct300"),
         "rules": rules,
@@ -527,7 +540,7 @@ def main():
     print("  上交所健康检查：%s" % json.dumps(probe, ensure_ascii=False), flush=True)
     payload["sse_probe"] = probe
 
-    amount_bench = fetch_amount_bench()
+    amount_bench = fetch_amount_bench(last["d"])
     if amount_bench:
         print("  成交额基准：近 %d 日全日日均 %.1f 亿（估算），缺失 %d 只"
               % (amount_bench["days"], amount_bench["avg20"],

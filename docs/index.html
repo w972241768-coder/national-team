@@ -108,7 +108,8 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
 <div class="note" id="qsum"></div>
 <div class="panel">
   <h3>今日分时累计成交额 · 16 只篮内 ETF 合计</h3>
-  <div class="note" style="margin:2px 0 7px">真实分钟数据（腾讯分时接口，每 60 秒刷新）。
+  <div class="note" style="margin:2px 0 7px">真实分钟数据（腾讯分时接口，每 60 秒刷新），
+  <b>分子分母同为 16 只篮内口径</b>；已过滤 15:01~15:30 的盘后延续点并按统一时间轴前向填充。
   <b>不做「按交易分钟平摊」折算</b>——ETF 日内成交呈 U 型，以 510300 为例实测 10:00 实际累计占全日 17.8%
   而线性假设只有 12.5%，平摊会把倍数虚高 1.43 倍。这里只给真实累计曲线与全日均值水平线。</div>
   <div id="intraday"></div>
@@ -134,10 +135,12 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
   <h3>历史单日净流入 Top 20 <small style="color:var(--dim);font-weight:400">· 全宽基 16 只口径</small></h3>
   <div class="note" style="margin:2px 0 7px">用来判断「最新这波流入在 11 年历史上排第几」。
   <b>「簇起点」</b>指该日是「单日净流入 &gt; 100 亿」事件按 20 交易日间隔去重后的第一次放量；
-  连续多日放量后的第 N 次属于簇内重复触发，参考价值显著下降（见模块五）。</div>
+  连续多日放量后的第 N 次属于簇内重复触发，参考价值显著下降（见模块五）。
+  <b>非簇起点会标出所属簇的起点日期与间隔交易日数</b>——所以史上最大天量（如 2025-04-08）
+  显示「簇内」而不是「—」，因为 04-07 才是那一簇的第一次放量。</div>
   <div class="scroll"><table>
     <thead><tr><th>排名</th><th>日期</th><th class="n">全宽基(亿)</th><th class="n">沪深300(亿)</th>
-      <th class="n">上证</th><th class="n">滚动分位</th><th>簇起点</th></tr></thead>
+      <th class="n">上证</th><th class="n">滚动分位</th><th>簇位置</th></tr></thead>
     <tbody id="topdays"></tbody></table></div>
 </div>
 
@@ -373,8 +376,9 @@ function renderQuotes(q){
     for(var code in q){if(q[code]&&q[code].ts){anyTs=q[code].ts;break}}
     var hh=+(anyTs||"").slice(8,10);
     benchTxt=hh>=15
-      ? " · 近20日全日日均 <b>"+f(b.avg20,1)+" 亿</b> ⇒ <b>"+f(totAmt/b.avg20,2)+" 倍</b>（已收盘可比）"
-      : " · 近20日全日日均 "+f(b.avg20,1)+" 亿（盘中为累计值，与全日均值不可直接比）";
+      ? " · <b>26 只同口径</b>近20日全日日均 <b>"+f(b.avg20,1)+" 亿</b> ⇒ <b>"+
+        f(totAmt/b.avg20,2)+" 倍</b>（已收盘可比）"
+      : " · 26 只口径近20日全日日均 "+f(b.avg20,1)+" 亿（盘中为累计值，与全日均值不可直接比）";
   }
   $("qsum").innerHTML="<b>"+valid+"</b> 只有效 · 合计成交额 <b>"+f(totAmt,1)+
     " 亿</b> · 上涨 <b class='up'>"+up+"</b> / 下跌 <b class='down'>"+down+"</b>"+
@@ -441,10 +445,11 @@ document.addEventListener("mousemove",function(e){
 });
 
 /* ===== 当日分时累计成交额（真实分钟数据，不做时间段平摊折算） ===== */
-var INTRADAY_LOADED=false;
+var INTRADAY_LOADED=false,INTRADAY_FAILS=0,INTRADAY_LAST_HTML=null,INTRADAY_LAST_AT="";
 async function loadIntraday(force){
   if(!D||!D.amount_bench)return;
   if(INTRADAY_LOADED&&!isTradingNow()&&!force)return;
+  if(INTRADAY_FAILS&&!isTradingNow()&&!force)return;   // 源故障且非盘中，别反复打
   var list=QCFG.filter(function(q){return q.grp==="in"});
   var res=await Promise.all(list.map(async function(q){
     var s=symOf(q.code);
@@ -456,21 +461,52 @@ async function loadIntraday(force){
       return (j.data&&j.data[s]&&j.data[s].data&&j.data[s].data.data)||[];
     }catch(e){return []}
   }));
-  var ok=res.filter(function(a){return a&&a.length}).length;
-  var m={};
-  res.forEach(function(arr){arr.forEach(function(line){
-    var p=line.split(" ");if(p.length<4)return;
-    var v=parseFloat(p[3]);if(!isFinite(v))return;
-    m[p[0]]=(m[p[0]]||0)+v/1e8;                 // 元 → 亿元
-  })});
-  var times=Object.keys(m).sort();
+  // 腾讯分时接口在 15:00 之后还有约 25 个盘后延续点（实测 16 只全部 267 条、末时间戳 1530），
+  // 会让 15:00 刻度落在 90% 处并拖出一条水平尾巴 ⇒ 只保留 <=1500 的交易时段点位。
+  // 另按「统一时间轴 + 前向填充」聚合：盘中并发时若某只 ETF 最新只到 1034、别只已到 1035，
+  // 直接按时间戳相加会漏掉那只 ETF 的整段累计额，曲线末端出现断崖。
+  var seriesList=[];
+  res.forEach(function(arr){
+    var s={},any=false;
+    (arr||[]).forEach(function(line){
+      var p=line.split(" ");
+      if(p.length<4||p[0]>"1500")return;
+      var v=parseFloat(p[3]);if(!isFinite(v))return;
+      s[p[0]]=v;any=true;
+    });
+    if(any)seriesList.push(s);
+  });
+  var ok=seriesList.length,timeSet={};
+  seriesList.forEach(function(s){Object.keys(s).forEach(function(t){timeSet[t]=1})});
+  var times=Object.keys(timeSet).sort();
   if(times.length<10){
-    $("intraday").innerHTML='<div class="err">分时数据暂不可用（取到 '+ok+"/"+list.length+
-      " 只）。不影响上方实时快照与历史数据。</div>";return;
+    // 腾讯分时接口偶发整体 501（实测与 Origin 无关）。保留上一次成功曲线，
+    // 只在顶部加降级提示，避免把已经画好的图清空、也避免每 60 秒刷一屏 CORS 报错。
+    INTRADAY_FAILS++;
+    var stale=INTRADAY_LAST_HTML
+      ? '<div class="err" style="margin:0 0 6px">分时源暂时不可用（取到 '+ok+"/"+list.length+
+        " 只），当前显示 "+esc(INTRADAY_LAST_AT)+" 的上一次快照；5 分钟后自动重试。"+
+        "不影响实时快照与全部历史数据。</div>"+INTRADAY_LAST_HTML
+      : '<div class="err">分时数据暂不可用（取到 '+ok+"/"+list.length+
+        " 只），5 分钟后自动重试。不影响上方实时快照与历史数据。</div>";
+    $("intraday").innerHTML=stale;return;
   }
+  INTRADAY_FAILS=0;
+  var m={};
+  seriesList.forEach(function(s){
+    var lastV=0;
+    times.forEach(function(t){
+      if(s[t]!==undefined)lastV=s[t];          // 前向填充到统一时间轴
+      m[t]=(m[t]||0)+lastV/1e8;                 // 元 → 亿元
+    });
+  });
   INTRADAY_LOADED=true;
   var vals=times.map(function(t){return m[t]}),cur=vals[vals.length-1];
-  var bench=D.amount_bench.avg20,top=Math.max(cur,bench)*1.12;
+  // 口径对齐：分子是 16 只篮内分时合计，分母必须用同口径的 avg20_in，
+  // 不能用 26 只全口径的 avg20（会让 1.67 倍误显示成 99.7%）。
+  var b=D.amount_bench,bench=b.avg20_in||b.avg20;
+  var benchLabel=b.avg20_in?"16 只篮内近20日全日日均":"近20日全日日均（全口径回退）";
+  var top=Math.max(cur,bench)*1.12;
   var w=1100,h=220,pl=56,pr=14,pt=14,pb=28,iw=w-pl-pr,ih=h-pt-pb;
   var X=function(i){return pl+iw*i/Math.max(1,times.length-1)};
   var Y=function(v){return pt+ih*(1-v/top)};
@@ -484,8 +520,8 @@ async function loadIntraday(force){
   });
   // 近 20 日全日日均水平参考线（不是「同期基线」，只作全天量级的水平参照）
   if(bench<top)o.push('<line x1="'+pl+'" y1="'+f(Y(bench),1)+'" x2="'+(pl+iw)+'" y2="'+f(Y(bench),1)+
-    '" stroke="'+C.gold+'" stroke-width="1.1" stroke-dasharray="5 4" opacity=".85"><title>近20日全日日均 '+
-    f(bench,1)+' 亿</title></line>');
+    '" stroke="'+C.gold+'" stroke-width="1.1" stroke-dasharray="5 4" opacity=".85"><title>'+
+    benchLabel+" "+f(bench,1)+" 亿</title></line>");
   o.push('<polyline points="'+vals.map(function(v,i){return f(X(i),1)+","+f(Y(v),1)}).join(" ")+
     '" fill="none" stroke="'+C.teal+'" stroke-width="1.8"/>');
   ["0930","1030","1130","1400","1500"].forEach(function(t){
@@ -495,19 +531,34 @@ async function loadIntraday(force){
     o.push('<text x="'+f(X(i),1)+'" y="'+(h-9)+'" fill="'+C.dim+
       '" font-size="9" text-anchor="middle">'+t.slice(0,2)+":"+t.slice(2)+"</text>");
   });
-  var step=Math.max(1,Math.floor(times.length/90));
-  for(var i=0;i<times.length;i+=step){
-    var t=times[i],x1=X(i),x2=X(Math.min(times.length-1,i+step));
-    var tip=t.slice(0,2)+":"+t.slice(2)+" · 累计 "+f(vals[i],1)+" 亿 · 全日均值的 "+
+  var step=Math.max(1,Math.floor(times.length/90)),idxs=[];
+  for(var i=0;i<times.length;i+=step)idxs.push(i);
+  // 保证最后一个命中条精确落在 15:00，而不是被采样跳到 14:59
+  if(idxs[idxs.length-1]!==times.length-1)idxs.push(times.length-1);
+  idxs.forEach(function(i,pos){
+    var t=times[i],x1=X(i),x2=X(pos+1<idxs.length?idxs[pos+1]:times.length-1);
+    var tip=t.slice(0,2)+":"+t.slice(2)+" · 16只累计 "+f(vals[i],1)+" 亿 · 篮内全日均值的 "+
       f(vals[i]/bench*100,1)+"%";
     o.push('<rect x="'+f(x1,1)+'" y="'+pt+'" width="'+f(Math.max(1,x2-x1),1)+'" height="'+ih+
       '" fill="transparent" data-tip="'+esc(tip)+'"><title>'+tip+"</title></rect>");
-  }
-  $("intraday").innerHTML='<div class="note" style="margin:0 0 6px">当前累计 <b>'+f(cur,1)+
-    " 亿</b>（取到 "+ok+"/"+list.length+" 只） · 近20日<b>全日</b>日均 "+f(bench,1)+
-    " 亿 ⇒ 已完成全日均值的 <b>"+f(cur/bench*100,1)+"%</b>"+
-    " · <span class='dim'>这是「占全日均值比例」，不是「同期同比倍数」；"+
-    "ETF 日内成交呈 U 型，按分钟平摊折算会失真</span></div>"+svg(w,h,o.join(""));
+  });
+  var html='<div class="note" style="margin:0 0 6px">当前累计 <b>'+f(cur,1)+
+    " 亿</b>（"+ok+"/"+list.length+" 只篮内 ETF） · "+benchLabel+" <b>"+f(bench,1)+
+    " 亿</b> ⇒ 已完成全日均值的 <b>"+f(cur/bench*100,1)+"%</b>"+
+    " · <span class='dim'>分子分母均为 <b>16 只篮内同口径</b>（上方行情表是 26 只全口径，两者不可混用）；"+
+    "这是「占全日均值比例」，不是「同期同比倍数」；ETF 日内成交呈 U 型，按分钟平摊折算会失真</span></div>"+
+    svg(w,h,o.join(""));
+  $("intraday").innerHTML=html;
+  INTRADAY_LAST_HTML=html;
+  INTRADAY_LAST_AT=new Date(Date.now()+(8+new Date().getTimezoneOffset()/60)*3600000)
+    .toTimeString().slice(0,5);
+}
+
+/* 成功 60 秒后再刷；分时源故障时退避到 5 分钟，避免反复打接口刷屏 */
+function intradayLoop(){
+  setTimeout(function(){
+    Promise.resolve(loadIntraday(false)).then(intradayLoop);
+  },INTRADAY_FAILS?300000:60000);
 }
 
 /* ====================== 图表（SVG 自绘） ====================== */
@@ -759,7 +810,11 @@ function render(D){
       "</td><td>"+ds8(x.d)+"</td><td class='n up'>"+f(x.nf,1,true)+
       "</td><td class='n'>"+f(x.nf300,1,true)+"</td><td class='n'>"+f(x.idx,2)+
       "</td><td class='n'>"+(x.pct===null||x.pct===undefined?"--":f(x.pct,0)+"%")+
-      "</td><td>"+(x.start?'<span class="badge hot">簇起点</span>':'<span class="dim">—</span>')+"</td></tr>";
+      "</td><td>"+(x.start
+        ? '<span class="badge hot">簇起点</span>'
+        : (x.cluster_start
+            ? '<span class="dim">簇内 · 起点 '+ds8(x.cluster_start)+'（+'+x.cluster_offset+' 交易日）</span>'
+            : '<span class="dim">—</span>'))+"</td></tr>";
   }).join("");
 
   var rowsHtml="",cur="";
@@ -849,7 +904,7 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
     var saved=localStorage.getItem("ntGhToken");
     if(saved){$("tok").value=saved;$("tok").placeholder="已保存（可留空直接触发）"}
     loadQuotes(true); scheduleQuotes();
-    loadIntraday(true); setInterval(function(){loadIntraday(false)},60000);
+    loadIntraday(true); intradayLoop();
   }catch(e){
     $("qnote").innerHTML='<span class="err">历史数据载入失败：'+esc(e.message)+
       "。请刷新页面重试；若持续失败，检查 data.json 是否随 Pages 发布。</span>";

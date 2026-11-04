@@ -199,7 +199,9 @@ def fetch_amount_bench(last_d):
        前端只在快照时间已过 15:00 时才显示倍数。
     """
     all_codes = list(BASKET) + list(QUOTE_ONLY)
-    daily, missing = {}, []
+    # 两套口径必须分开：页面「26 只实时合计成交额」与「16 只篮内分时累计」
+    # 各自要用同口径的均值做分母，否则会出现「分子 16 只 / 分母 26 只」的错配。
+    daily, daily_in, missing = {}, {}, []
     for code in all_codes:
         sym = ("sh" if code[0] in "56" else "sz") + code
         u = "%s?symbol=%s&scale=240&ma=no&datalen=25" % (SINA_KLINE, sym)
@@ -207,11 +209,16 @@ def fetch_amount_bench(last_d):
         if "__error__" in j or not isinstance(j, list):
             missing.append(code)
             continue
+        is_in = code in BASKET
         for x in j:
             try:
                 d = x["day"].replace("-", "")
+                v = float(x["volume"]) * float(x["close"]) / 1e8
                 daily.setdefault(d, 0.0)
-                daily[d] += float(x["volume"]) * float(x["close"]) / 1e8
+                daily[d] += v
+                if is_in:
+                    daily_in.setdefault(d, 0.0)
+                    daily_in[d] += v
             except (KeyError, TypeError, ValueError):
                 pass
     # 不能用 sorted(daily)[-21:-1] 无条件砍掉最后一天：
@@ -221,9 +228,12 @@ def fetch_amount_bench(last_d):
     # 口径与页面 asof 一致，且不依赖运行时段。
     valid_days = [d for d in sorted(daily) if d <= last_d][-20:]
     vals = [daily[d] for d in valid_days]
+    vals_in = [daily_in.get(d, 0.0) for d in valid_days]
     if len(vals) < 10:
         return None
-    return {"avg20": round(sum(vals) / len(vals), 1),
+    return {"avg20": round(sum(vals) / len(vals), 1),          # 26 只全口径
+            "avg20_in": round(sum(vals_in) / len(vals_in), 1),  # 16 只篮内口径
+            "n_all": len(all_codes) - len(missing), "n_in": len(BASKET),
             "prev": round(vals[-1], 1) if vals else None,
             "days": len(vals), "last_day": valid_days[-1], "missing": missing,
             "method": "新浪日线成交量 × 收盘价（估算），实测误差约 +1.3%"}
@@ -479,13 +489,26 @@ def main():
     daily_style = [{"d": r["d"], "by": {s: round(r["by"][s], 1) for s in STYLES}}
                    for r in last20]
     fund_flow = fund_flow_by_code(shares, nav, [r["d"] for r in rows[-21:]])
-    # 历史单日净流入 Top 20，并标出「>100 亿事件」的簇起点（第一次放量参考价值最高）
-    big_starts = {c[0] for c in clus([i for i, r in enumerate(rows) if r["nf"] > 100])}
-    top_days = [{"d": r["d"], "nf": round(r["nf"], 1), "nf300": round(r["nf300"], 1),
-                 "idx": round(r["idx"], 2),
-                 "pct": None if r.get("pct") is None else round(r["pct"], 1),
-                 "start": i in big_starts}
-                for i, r in sorted(enumerate(rows), key=lambda x: -x[1]["nf"])[:20]]
+    # 历史单日净流入 Top 20，并标出「>100 亿事件」的簇起点。
+    # 非簇起点的行额外带出所属簇的起点日期与间隔交易日数，避免读者困惑
+    # 「为什么史上最大天量反而没有簇起点标签」——它往往是簇内第 2 天。
+    big_clusters = clus([i for i, r in enumerate(rows) if r["nf"] > 100])
+    big_starts = {c[0] for c in big_clusters}
+    belong = {}
+    for c in big_clusters:
+        for i in c:
+            belong[i] = (c[0], i - c[0])
+    top_days = []
+    for i, r in sorted(enumerate(rows), key=lambda x: -x[1]["nf"])[:20]:
+        # ⚠️ 局部变量不能叫 st：模块级有统计函数 st()，同名会让整个 main() 内的 st 变成局部名，
+        #    在 base = st([...]) 处抛 UnboundLocalError（项目里已踩过一次，勿再犯）。
+        ci, off = belong.get(i, (None, None))
+        top_days.append({"d": r["d"], "nf": round(r["nf"], 1),
+                         "nf300": round(r["nf300"], 1), "idx": round(r["idx"], 2),
+                         "pct": None if r.get("pct") is None else round(r["pct"], 1),
+                         "start": i in big_starts,
+                         "cluster_start": rows[ci]["d"] if ci is not None else None,
+                         "cluster_offset": off})
     month_map = {}
     for r in rows:
         m = r["d"][:6]
@@ -542,9 +565,9 @@ def main():
 
     amount_bench = fetch_amount_bench(last["d"])
     if amount_bench:
-        print("  成交额基准：近 %d 日全日日均 %.1f 亿（估算），缺失 %d 只"
+        print("  成交额基准：近 %d 日全日日均 %.1f 亿（26只全口径）/ %.1f 亿（16只篮内），缺失 %d 只"
               % (amount_bench["days"], amount_bench["avg20"],
-                 len(amount_bench["missing"])), flush=True)
+                 amount_bench["avg20_in"], len(amount_bench["missing"])), flush=True)
     else:
         print("  成交额基准：数据不足，跳过（不影响主流程）", flush=True)
     payload["amount_bench"] = amount_bench

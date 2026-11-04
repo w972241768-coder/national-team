@@ -44,7 +44,10 @@ BASKET = {
     "512050": ("中证A500", "A500E华夏"), "563360": ("中证A500", "A500基金华泰柏瑞"),
     "588000": ("科创50", "科创50华夏"), "588080": ("科创50", "科创板50易方达"),
 }
-# 深市 9 只 + 560010：深交所无公开日频份额接口，且 560010 未纳入篮子 ⇒ 仅提供实时行情
+# 仅提供实时行情、不计入净流入的 10 只，分两种原因（页面分组标题会分别标注）：
+#   ① 深市 9 只 —— 深交所无公开日频份额接口，取不到历史份额；
+#   ② 560010 —— **沪市**（56 开头，上交所接口确实返回其份额），只是未纳入本篮子历史基线。
+#      它不是「深市无接口」，措辞不要混为一谈。
 QUOTE_ONLY = {
     "159919": ("沪深300", "300ETF嘉实"), "159915": ("创业板指", "创业板ETF易方达"),
     "159949": ("创业板50", "创业板50ETF华安"), "159952": ("创业板指", "创业板ETF广发"),
@@ -88,10 +91,13 @@ def http_json(url, params=None, headers=None, timeout=25, retries=2):
 
 # ---------------------------------------------------------------- 抓取层
 def sse_one_day(dt):
+    # 防御性加固：接口当前同时接受 20261103 与 2026-11-03（实测两种都返回 923 条、
+    # 510300 份额一致），但官方文档口径是 YYYY-MM-DD；统一成带连字符，防止将来收紧校验。
+    day = dt[:4] + "-" + dt[4:6] + "-" + dt[6:] if len(dt) == 8 and "-" not in dt else dt
     p = {"isPagination": "true", "pageHelp.pageSize": "10000",
          "pageHelp.pageNo": "1", "pageHelp.beginPage": "1",
          "pageHelp.cacheSize": "1", "pageHelp.endPage": "1",
-         "sqlId": SSE_SQLID, "STAT_DATE": dt}
+         "sqlId": SSE_SQLID, "STAT_DATE": day}
     j = http_json(SSE_URL, params=p, headers=SSE_HEAD, timeout=30, retries=1)
     if "__error__" in j:
         return dt, None
@@ -181,6 +187,41 @@ def fetch_index():
     if not ser:
         warn("新浪上证指数抓取失败")
     return ser
+
+
+def fetch_amount_bench():
+    """近 20 个交易日「全部 26 只 ETF 合计成交额」基准（亿元，估算值）。
+
+    新浪日线 volume 单位为股，amount ≈ volume × close / 1e8。
+    实测 510300 于 2026-11-04：估算 127.23 亿 vs 腾讯快照 125.62 亿，误差 +1.3%，
+    作为「放量倍数」的参照系够用，但必须在页面上标注为估算。
+    ⚠️ 盘中浏览器的今日值是「截至当前时刻累计」，与这里的「全日」均值不可直接相除，
+       前端只在快照时间已过 15:00 时才显示倍数。
+    """
+    all_codes = list(BASKET) + list(QUOTE_ONLY)
+    daily, missing = {}, []
+    for code in all_codes:
+        sym = ("sh" if code[0] in "56" else "sz") + code
+        u = "%s?symbol=%s&scale=240&ma=no&datalen=25" % (SINA_KLINE, sym)
+        j = http_json(u, headers=SINA_HEAD, timeout=25, retries=1)
+        if "__error__" in j or not isinstance(j, list):
+            missing.append(code)
+            continue
+        for x in j:
+            try:
+                d = x["day"].replace("-", "")
+                daily.setdefault(d, 0.0)
+                daily[d] += float(x["volume"]) * float(x["close"]) / 1e8
+            except (KeyError, TypeError, ValueError):
+                pass
+    days = sorted(daily)[-21:-1]          # 最近 20 个完整交易日
+    vals = [daily[d] for d in days]
+    if len(vals) < 10:
+        return None
+    return {"avg20": round(sum(vals) / len(vals), 1),
+            "prev": round(vals[-1], 1) if vals else None,
+            "days": len(vals), "missing": missing,
+            "method": "新浪日线成交量 × 收盘价（估算），实测误差约 +1.3%"}
 
 
 def probe_sse(dt):
@@ -305,9 +346,12 @@ def rule_stats(rows, f):
 
 
 def periods(rows):
+    # 最后一段的上界必须跟着数据走，否则新增交易日会被悄悄排除在统计之外。
+    last_d = rows[-1]["d"]
+    tail_label = "2024/11-%s/%s" % (last_d[:4], last_d[4:6])
     segs = [("2015-2019", "20150101", "20191231"), ("2020-2022", "20200101", "20221231"),
             ("2023-2024/11", "20230101", "20241103"),
-            ("2024/11-2026/11", "20241104", "20261103")]
+            (tail_label, "20241104", last_d)]
     out = []
     for tag, a, b in segs:
         sub = [r for r in rows if a <= r["d"] <= b]
@@ -339,6 +383,29 @@ def pct_scan(rows):
         f = lambda r, t=th: (r.get("pct") is not None and r["pct"] >= t and r["nf"] > 0)
         out.append({"th": th, **rule_stats(rows, f)})
     return out
+
+
+def fund_flow_by_code(sh, nav, day_list):
+    """单只 ETF 的当日 / 近 20 日净流入（亿元）。
+
+    shares.json 保留了逐日逐只份额，所以这部分不需要额外取数。
+    day_list 传最近 21 个有效交易日（20 个差额需要 21 个切片）。
+    """
+    out = {c: {"d1": 0.0, "d20": 0.0} for c in BASKET}
+    for i in range(1, len(day_list)):
+        d0, d1 = day_list[i - 1], day_list[i]
+        for c in BASKET:
+            s0, s1 = sh.get(d0, {}).get(c), sh.get(d1, {}).get(c)
+            p = nav.get(c, {}).get(d1)
+            if s0 is None or s1 is None or not p:
+                continue
+            v = (s1 - s0) * p / 1e8
+            if i >= len(day_list) - 20:
+                out[c]["d20"] += v
+            if i == len(day_list) - 1:
+                out[c]["d1"] += v
+    return {c: {"d1": round(v["d1"], 1), "d20": round(v["d20"], 1)}
+            for c, v in out.items()}
 
 
 def main():
@@ -401,8 +468,12 @@ def main():
                      "sup": r["sup"], "inten": round(r["inten"], 3)})
 
     last20 = rows[-20:]
+    sum20 = sum(r["nf"] for r in last20)
     style20 = {s: round(sum(r["by"][s] for r in last20), 1) for s in STYLES}
     style_all = {s: round(sum(r["by"][s] for r in rows), 0) for s in STYLES}
+    daily_style = [{"d": r["d"], "by": {s: round(r["by"][s], 1) for s in STYLES}}
+                   for r in last20]
+    fund_flow = fund_flow_by_code(shares, nav, [r["d"] for r in rows[-21:]])
     month_map = {}
     for r in rows:
         m = r["d"][:6]
@@ -424,25 +495,46 @@ def main():
             "idx": round(last["idx"], 2),
             "by": {k: round(v, 1) for k, v in last["by"].items()},
             "style20": style20, "style_all": style_all,
-            "sum20": round(sum(r["nf"] for r in last20), 0),
-            "share300_20": round(style20["沪深300"] / max(1e-9, sum(r["nf"] for r in last20)) * 100, 1),
+            "sum20": round(sum20, 0),
+            # 近 20 日合计为净流出时，占比没有意义（会出现 -300% 这类误导数字）
+            "share300_20": (round(style20["沪深300"] / sum20 * 100, 1)
+                            if sum20 > 0 else None),
         },
         "rows": slim,
         "styles": STYLES,
         "style_month": style_month,
+        "daily_style": daily_style,
+        "fund_flow": fund_flow,
         "quint_all": quint(rows, "pct"),
         "quint_300": quint(rows, "pct300"),
         "rules": rules,
         "periods": periods(rows),
         "scan": threshold_scan(rows),
         "pct_scan": pct_scan(rows),
-        "basket": [{"code": c, "style": v[0], "name": v[1], "from": first_seen.get(c)}
+        "basket": [{"code": c, "style": v[0], "name": v[1], "from": first_seen.get(c),
+                    "d1": fund_flow[c]["d1"], "d20": fund_flow[c]["d20"]}
                    for c, v in BASKET.items()],
         "quotes": ([{"code": c, "style": v[0], "name": v[1], "grp": "in"}
                     for c, v in BASKET.items()] +
-                   [{"code": c, "style": v[0], "name": v[1], "grp": "out"}
+                   [{"code": c, "style": v[0], "name": v[1], "grp": "out",
+                     "reason": ("sse_not_in_baseline" if c == "560010" else "szse_no_api")}
                     for c, v in QUOTE_ONLY.items()]),
     }
+
+    # 以下两项必须在写 data.json 之前算完并并入 payload，否则字段会静默丢失。
+    probe = probe_sse(max(d for d, v in shares.items()
+                          if isinstance(v, dict) and v and not v.get("_holiday")))
+    print("  上交所健康检查：%s" % json.dumps(probe, ensure_ascii=False), flush=True)
+    payload["sse_probe"] = probe
+
+    amount_bench = fetch_amount_bench()
+    if amount_bench:
+        print("  成交额基准：近 %d 日全日日均 %.1f 亿（估算），缺失 %d 只"
+              % (amount_bench["days"], amount_bench["avg20"],
+                 len(amount_bench["missing"])), flush=True)
+    else:
+        print("  成交额基准：数据不足，跳过（不影响主流程）", flush=True)
+    payload["amount_bench"] = amount_bench
 
     # 写基线（增量回写，下次 CI 不必重抓）
     json.dump(shares, open(os.path.join(DATA, "shares.json"), "w", encoding="utf-8"),
@@ -454,10 +546,6 @@ def main():
     json.dump(payload, open(tmp, "w", encoding="utf-8"), ensure_ascii=False,
               separators=(",", ":"))
     os.replace(tmp, os.path.join(DOCS, "data.json"))
-
-    probe = probe_sse(max(d for d, v in shares.items()
-                          if isinstance(v, dict) and v and not v.get("_holiday")))
-    print("  上交所健康检查：%s" % json.dumps(probe, ensure_ascii=False), flush=True)
 
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
     state = {

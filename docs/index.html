@@ -68,6 +68,9 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 code{background:var(--panel2);border-radius:4px;padding:1px 5px;font-size:11px;color:var(--teal)}
 footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:var(--dim);font-size:11.5px;line-height:1.9}
 .err{color:var(--gold);font-size:12px}
+.pbar{display:inline-block;width:48px;height:6px;background:#22303e;border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:6px}
+.pbar i{display:block;height:100%;background:var(--teal);opacity:.85}
+.heatcell{text-align:right;font-variant-numeric:tabular-nums;padding:5px 7px;border-radius:2px;font-size:11.5px}
 </style>
 </head>
 <body><div class="wrap">
@@ -96,7 +99,7 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
 <div class="panel" style="padding:0">
   <div class="scroll"><table id="qt"><thead><tr>
     <th>标的</th><th>代码</th><th class="n">现价</th><th class="n">涨跌幅</th>
-    <th class="n">成交额(亿)</th><th class="n">换手</th><th class="n">规模(亿)</th><th>状态</th>
+    <th class="n">成交额(亿)</th><th class="n">占比</th><th class="n">换手</th><th class="n">规模(亿)</th><th>快照时间</th>
   </tr></thead><tbody id="qbody"><tr><td colspan="8" class="dim">载入中…</td></tr></tbody></table></div>
 </div>
 <div class="note" id="qsum"></div>
@@ -120,6 +123,13 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
 <h2>四 · 分风格资金去向 <small>STYLE</small></h2>
 <div class="panel"><div id="c3"></div></div>
 <div class="note" id="stynote"></div>
+<div class="panel">
+  <h3>最近 20 个交易日 · 分风格逐日净流入（亿元）</h3>
+  <div class="note">红=流入、绿=流出，色深按<b>该风格自身近 20 日绝对值最大者</b>归一（列内可比，跨列不代表金额可比）。
+  月度图颗粒度太粗，这张表用来看「最近这波钱具体是哪几天、进了哪个风格」。</div>
+  <div class="scroll"><table id="heat">
+    <thead><tr id="heatHead"></tr></thead><tbody id="heatBody"></tbody></table></div>
+</div>
 
 <h2>五 · 信号效力复核 <small>VALIDATION · 结论偏负面，请务必读</small></h2>
 <div class="alert">
@@ -136,6 +146,28 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
     <thead><tr><th>阈值</th><th class="n">事件</th><th class="n">簇</th><th class="n">簇 T+20</th><th class="n">胜率</th></tr></thead>
     <tbody id="pscan"></tbody></table></div>
 </div>
+<div class="two" style="margin-top:12px">
+  <div class="panel"><h3>绝对金额阈值扫描 · 全宽基 16 只</h3>
+    <div class="note" style="margin:2px 0 7px">越极端越有效；50~100 亿是坑，150 亿起才转正。</div>
+    <table><thead><tr><th>单日净流入</th><th class="n">事件</th><th class="n">簇</th>
+      <th class="n">簇 T+20</th><th class="n">胜率</th></tr></thead>
+      <tbody id="scanAll"></tbody></table></div>
+  <div class="panel"><h3>绝对金额阈值扫描 · 沪深300 八只</h3>
+    <div class="note" style="margin:2px 0 7px">窄篮子里 80 亿就已转正 —— 同一数字在不同宽度的篮子里含义不同。</div>
+    <table><thead><tr><th>单日净流入</th><th class="n">事件</th><th class="n">簇</th>
+      <th class="n">簇 T+20</th><th class="n">胜率</th></tr></thead>
+      <tbody id="ScanC300"></tbody></table></div>
+</div>
+<div class="two" style="margin-top:12px">
+  <div class="panel"><h3>滚动分位五档 · 全宽基 16 只</h3>
+    <table><thead><tr><th>分位档</th><th class="n">样本</th><th class="n">T+5</th>
+      <th class="n">T+20</th><th class="n">胜率</th></tr></thead><tbody id="quintAll"></tbody></table></div>
+  <div class="panel"><h3>滚动分位五档 · 沪深300 八只</h3>
+    <table><thead><tr><th>分位档</th><th class="n">样本</th><th class="n">T+5</th>
+      <th class="n">T+20</th><th class="n">胜率</th></tr></thead><tbody id="quint300"></tbody></table></div>
+</div>
+<div class="note" style="margin-top:8px">分位五档<b>不单调</b>：最高档（80~100%）的 T+20 反而是五档里最差的之一。
+  「分位越高越偏多」不成立 —— 这正是第五部分结论的另一种看法。</div>
 <div class="panel" style="margin-top:12px"><h3>分区间稳定性：所有"聪明规则"在 2023 年以前都不灵</h3>
 <table><thead><tr><th>区间</th><th class="n">交易日</th><th class="n">基准 T+20</th>
 <th class="n">滚动95分位<br>簇 T+20</th><th class="n">&gt;150亿(16只)<br>簇 T+20</th>
@@ -152,10 +184,17 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
 
 <h2>六 · 篮子构成与缺口 <small>COVERAGE</small></h2>
 <div class="panel"><div class="scroll"><table>
-<thead><tr><th>代码</th><th>名称</th><th>风格</th><th>纳入起始</th><th>口径</th></tr></thead>
+<thead><tr><th>代码</th><th>名称</th><th>风格</th><th>纳入起始</th>
+  <th class="n">当日净流入(亿)</th><th class="n">近20日(亿)</th><th>口径</th></tr></thead>
 <tbody id="basket"></tbody></table></div></div>
-<div class="note">深市 9 只（159919/159915/159949/159952/159338/159352/159361/159633/159845）
-  与 560010 因深交所无公开日频份额接口，<b>仅提供实时行情、不计入净流入</b>。
+<div class="note">
+  <b>未纳入净流入的 10 只，原因分两类</b>：<br>
+  ① <b>深市 9 只</b>（159919/159915/159949/159952/159338/159352/159361/159633/159845）——
+  深交所无公开日频份额接口，取不到历史份额；<br>
+  ② <b>560010（1000ETF广发）是沪市 ETF</b>（56 开头，上交所接口确实返回其份额），
+  仅因未纳入本篮子的历史份额基线而暂未计入，<b>不是"深交所无接口"</b>。
+  其规模约 92 亿，占当前篮子 7585 亿的约 1.2%；是否补齐历史基线并纳入统计，
+  属于篮子口径变更，需与已发布的全部统计数字同步重算，故暂列待核验。<br>
   对原站 20 只口径逐日相关 0.94、幅度覆盖约 84%，方向一致、幅度等比缩小。
 </div>
 
@@ -190,7 +229,7 @@ sqlId <code>COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L</code>）、新浪财经�
 
 <script>
 /* ====================== 全局 ====================== */
-var D=null, QCFG=[], TIMER=null, TICK=null, LASTQ=0;
+var D=null, QCFG=[], TIMER=null, TICK=null, LASTQ=0, QMODE="fetch";
 var REPO="w972241768-coder/national-team", WF="update.yml", REF="main";
 var C={bg:"#0b0f14",line:"#1f2a36",dim:"#8b98a5",red:"#f2545b",green:"#2ea36b",
        gold:"#e3b341",blue:"#4a9eff",purple:"#a371f7",teal:"#39c5cf"};
@@ -259,45 +298,83 @@ function fetchQuotesScript(){
   });
 }
 function renderQuotes(q){
-  var html="", cur="";
-  var totAmt=0, up=0, down=0, valid=0;
+  // 组内按当日成交额降序：盘中一眼看出哪几只在放量；占比条按全场最大占比归一
+  var totAmt=0, up=0, down=0, valid=0, all=[];
   QCFG.forEach(function(cfg){
-    var g=cfg.grp==="in"?"纳入净流入计算（16 只沪市宽基）":"仅实时行情 · 未纳入净流入（深市 9 只 + 560010）";
-    if(g!==cur){cur=g;html+='<tr class="grp"><td colspan="8">'+esc(g)+"</td></tr>"}
-    var v=q[cfg.code];
-    if(!v||!isFinite(v.price)||v.price<=0){
-      html+="<tr><td>"+esc(cfg.name)+"</td><td class='dim'>"+cfg.code+"</td>"+
-        "<td colspan='6' class='dim'>实时数据不可用</td></tr>";return;
-    }
-    valid++; totAmt+=v.amount; if(v.pct>0)up++;else if(v.pct<0)down++;
-    var cl=v.pct>0?"up":v.pct<0?"down":"";
-    var tag=cfg.grp==="in"?'<span class="badge hot">篮内</span>':'<span class="badge">参考</span>';
-    html+="<tr><td>"+esc(cfg.name)+tag+"</td><td class='dim'>"+cfg.code+"</td>"+
-      "<td class='n'>"+f(v.price,3)+"</td>"+
-      "<td class='n "+cl+"'>"+f(v.pct,2,true)+"%</td>"+
-      "<td class='n'>"+f(v.amount,2)+"</td>"+
-      "<td class='n'>"+f(v.turn,2)+"%</td>"+
-      "<td class='n'>"+f(v.size,1)+"</td>"+
-      "<td class='dim'>"+esc((v.ts||"").slice(8,10)+":"+(v.ts||"").slice(10,12))+"</td></tr>";
+    var v=q[cfg.code], ok=v&&isFinite(v.price)&&v.price>0;
+    if(ok){valid++;totAmt+=v.amount;if(v.pct>0)up++;else if(v.pct<0)down++;}
+    all.push({cfg:cfg,v:ok?v:null});
   });
+  var maxAmt=Math.max.apply(null,all.map(function(o){return o.v?o.v.amount:0}))||1;
+  var byAmt=function(a,b){return (b.v?b.v.amount:-1)-(a.v?a.v.amount:-1)};
+  var gIn=all.filter(function(o){return o.cfg.grp==="in"}).sort(byAmt);
+  var gSz=all.filter(function(o){return o.cfg.grp==="out"&&o.cfg.reason!=="sse_not_in_baseline"}).sort(byAmt);
+  var gSh=all.filter(function(o){return o.cfg.reason==="sse_not_in_baseline"}).sort(byAmt);
+  var html="";
+  function group(label,list){
+    if(!list.length)return;
+    html+='<tr class="grp"><td colspan="9">'+esc(label)+"</td></tr>";
+    list.forEach(function(o){
+      var cfg=o.cfg,v=o.v;
+      if(!v){
+        html+="<tr><td>"+esc(cfg.name)+"</td><td class='dim'>"+cfg.code+"</td>"+
+          "<td colspan='7' class='dim'>实时数据不可用</td></tr>";return;
+      }
+      var cl=v.pct>0?"up":v.pct<0?"down":"";
+      var share=totAmt>0?v.amount/totAmt*100:0;
+      var barW=Math.min(100,v.amount/maxAmt*100);
+      var tag=cfg.grp==="in"?'<span class="badge hot">篮内</span>':'<span class="badge">参考</span>';
+      html+="<tr><td>"+esc(cfg.name)+tag+"</td><td class='dim'>"+cfg.code+"</td>"+
+        "<td class='n'>"+f(v.price,3)+"</td>"+
+        "<td class='n "+cl+"'>"+f(v.pct,2,true)+"%</td>"+
+        "<td class='n'>"+f(v.amount,2)+"</td>"+
+        "<td class='n'><span class='pbar'><i style='width:"+f(barW,1)+"%'></i></span>"+
+          "<span class='dim'>"+f(share,1)+"%</span></td>"+
+        "<td class='n'>"+f(v.turn,2)+"%</td>"+
+        "<td class='n'>"+f(v.size,1)+"</td>"+
+        "<td class='dim'>"+esc((v.ts||"").slice(8,10)+":"+(v.ts||"").slice(10,12))+"</td></tr>";
+    });
+  }
+  group("纳入净流入计算 · 16 只沪市宽基（按成交额降序）",gIn);
+  group("仅行情 · 深市 9 只（深交所无公开日频份额接口）",gSz);
+  group("仅行情 · 沪市 560010（份额可得，未纳入历史基线）",gSh);
   $("qbody").innerHTML=html;
   var first=q[QCFG[0].code];
   if(first&&first.ts){
     var t=first.ts; $("qtime").textContent=t.slice(8,10)+":"+t.slice(10,12)+":"+t.slice(12,14);
   }
+  // 成交额放量基准：盘中今日值是「截至当前时刻累计」，全日均值是「全天」，
+  // 两者相除会系统性低估 ⇒ 只在快照时间已过 15:00 后才给倍数。
+  var b=D&&D.amount_bench, benchTxt="";
+  if(b&&b.avg20>0){
+    var anyTs="";
+    for(var code in q){if(q[code]&&q[code].ts){anyTs=q[code].ts;break}}
+    var hh=+(anyTs||"").slice(8,10);
+    benchTxt=hh>=15
+      ? " · 近20日全日日均 <b>"+f(b.avg20,1)+" 亿</b> ⇒ <b>"+f(totAmt/b.avg20,2)+" 倍</b>（已收盘可比）"
+      : " · 近20日全日日均 "+f(b.avg20,1)+" 亿（盘中为累计值，与全日均值不可直接比）";
+  }
   $("qsum").innerHTML="<b>"+valid+"</b> 只有效 · 合计成交额 <b>"+f(totAmt,1)+
     " 亿</b> · 上涨 <b class='up'>"+up+"</b> / 下跌 <b class='down'>"+down+"</b>"+
-    " · 数据源 腾讯财经（浏览器直连）";
+    benchTxt+" · 占比条按全场最大单只成交额归一 · 数据源 腾讯财经（浏览器直连）"+
+    (b?"<br><span class='dim'>成交额基准："+esc(b.method)+
+       "；仅作放量参照，不当作精确成交额。</span>":"");
 }
 async function loadQuotes(manual){
   if(!QCFG.length)return;
   $("qnote").innerHTML='<span class="dim">正在拉取实时行情…</span>';
-  var data=null, how="";
-  try{ data=await fetchQuotes(); how="fetch"; }
-  catch(e1){
+  var data=null, how="", e1=null;
+  // 记住失败过的通道：某些受限环境 fetch 会必现 CORS 报错，
+  // 一旦降级成功就直接走 script，避免每 15 秒在控制台刷一条红字。
+  if(QMODE==="fetch"){
+    try{ data=await fetchQuotes(); how="fetch"; }
+    catch(e){ e1=e; QMODE="script"; }
+  }
+  if(!data){
     try{ data=await fetchQuotesScript(); how="script"; }
     catch(e2){
-      $("qnote").innerHTML='<span class="err">实时源连接失败（'+esc(e1.message)+" / "+esc(e2.message)+
+      $("qnote").innerHTML='<span class="err">实时源连接失败（'+
+        esc(e1?e1.message:"fetch 已禁用")+" / "+esc(e2.message)+
         "）。本页历史数据不受影响；如在网络受限环境，请稍后点「立即刷新」重试。</span>";
       $("dot").className="dot"; $("mkt").textContent="实时源不可用";
       return;
@@ -355,9 +432,11 @@ function chartDaily(rows){
   var bw=Math.max(1.0,iw/R.length*.62);
   R.forEach(function(r,i){
     var y0=Y(0),y1=Y(r.nf);
-    o.push('<rect x="'+f(X(i)-bw/2,1)+'" y="'+f(Math.min(y0,y1),1)+'" width="'+f(bw,1)+
+    o.push('<rect x="'+f(X(i)-bw/2,1)+'" y="'+f(Math.min(y0,y1),1)+'" width="'+f(Math.max(1.6,bw),1)+
       '" height="'+f(Math.max(.8,Math.abs(y1-y0)),1)+'" fill="'+(r.nf>0?C.red:C.green)+
-      '" opacity="'+(r.sup ? 0.95 : 0.62)+'"/>');
+      '" opacity="'+(r.sup ? 0.95 : 0.62)+'"><title>'+ds8(r.d)+" · 净流入 "+f(r.nf,1,true)+
+      " 亿 · 沪深300 "+f(r.nf300,1,true)+" 亿 · 上证 "+f(r.idx,2)+
+      (r.sup?" · 触发滚动95分位":"")+"</title></rect>");
   });
   var idx=R.map(function(r){return r.idx}),mn=Math.min.apply(null,idx),mx=Math.max.apply(null,idx);
   var pts=R.map(function(r,i){return f(X(i),1)+","+f(pt+12+(ih-24)*(1-(r.idx-mn)/Math.max(1e-9,mx-mn)),1)}).join(" ");
@@ -387,17 +466,33 @@ function chartCum(rows){
     o.push('<line x1="'+pl+'" y1="'+f(y,1)+'" x2="'+(pl+iw)+'" y2="'+f(y,1)+'" stroke="'+C.line+'" stroke-width=".6"/>');
     o.push('<text x="'+(pl-5)+'" y="'+f(y+3,1)+'" fill="'+C.dim+'" font-size="9" text-anchor="end">'+f(v,0)+"</text>");
   }
+  // 零轴单独加粗，便于判断累计曲线在净申购还是净赎回区
+  o.push('<line x1="'+pl+'" y1="'+f(Y(0),1)+'" x2="'+(pl+iw)+'" y2="'+f(Y(0),1)+
+    '" stroke="'+C.dim+'" stroke-width="1" stroke-dasharray="4 3" opacity=".75"/>');
   [[ca,C.red],[c3,C.blue]].forEach(function(p){
     o.push('<polyline points="'+p[0].map(function(v,i){return f(X(i),1)+","+f(Y(v),1)}).join(" ")+
       '" fill="none" stroke="'+p[1]+'" stroke-width="1.6"/>');
   });
-  var seen={};
+  // 全历史 12 年，按季度打标会塞进 48 个标签叠成一条黑带 ⇒ 改为每 2 年一个年份刻度
+  var seenY={};
   rows.forEach(function(r,i){
-    var m=r.d.slice(0,6);if(seen[m]||+r.d.slice(6)>8||!i)return;seen[m]=1;
-    if(+m.slice(4)%3!==1)return;
+    var y=r.d.slice(0,4),m=r.d.slice(4,6);
+    if(seenY[y]||m!=="01"||(+y)%2!==1||!i)return;
+    seenY[y]=1;
+    o.push('<line x1="'+f(X(i),1)+'" y1="'+pt+'" x2="'+f(X(i),1)+'" y2="'+(pt+ih)+
+      '" stroke="'+C.line+'" stroke-width=".5" opacity=".5"/>');
     o.push('<text x="'+f(X(i),1)+'" y="'+(h-9)+'" fill="'+C.dim+
-      '" font-size="9" text-anchor="middle">'+m.slice(2,4)+"/"+m.slice(4)+"</text>");
+      '" font-size="9" text-anchor="middle">'+y+"</text>");
   });
+  // 悬停读数：沿 x 轴铺透明命中条，浏览器原生 tooltip 显示当日累计值
+  var step=Math.max(1,Math.floor(rows.length/120));
+  for(var i=0;i<rows.length;i+=step){
+    var r=rows[i],x1=X(i),x2=X(Math.min(rows.length-1,i+step));
+    o.push('<rect x="'+f(x1,1)+'" y="'+pt+'" width="'+f(Math.max(1,x2-x1),1)+'" height="'+ih+
+      '" fill="transparent"><title>'+ds8(r.d)+" · 累计(16只) "+f(ca[i],0,true)+
+      " 亿 · 累计(300八只) "+f(c3[i],0,true)+" 亿 · 当日 "+f(r.nf,1,true)+
+      " 亿 · 上证 "+f(r.idx,2)+"</title></rect>");
+  }
   return svg(w,h,o.join(""));
 }
 function chartStyle(months,styles){
@@ -430,7 +525,8 @@ function chartStyle(months,styles){
     styles.forEach(function(s,j){
       var v=m.by[s],yy=Y(v);
       o.push('<rect x="'+f(cx-slot/2+j*bw,1)+'" y="'+f(Math.min(y0,yy),1)+'" width="'+f(Math.max(.8,bw-.4),1)+
-        '" height="'+f(Math.max(.8,Math.abs(yy-y0)),1)+'" fill="'+SCOLOR[s]+'" opacity=".82"/>');
+        '" height="'+f(Math.max(.8,Math.abs(yy-y0)),1)+'" fill="'+SCOLOR[s]+'" opacity=".82"><title>'+
+        m.m.slice(0,4)+"-"+m.m.slice(4)+" · "+s+" "+f(v,1,true)+" 亿</title></rect>");
     });
     if(i%3===0)o.push('<text x="'+f(cx,1)+'" y="'+(h-10)+'" fill="'+C.dim+
       '" font-size="9" text-anchor="middle">'+m.m.slice(2,4)+"/"+m.m.slice(4)+"</text>");
@@ -439,19 +535,48 @@ function chartStyle(months,styles){
 }
 
 /* ====================== 渲染 ====================== */
+function renderHeat(D){
+  var S=D.styles, rows=D.daily_style.slice().reverse();   // 最近一日在最上
+  var mx={};
+  S.forEach(function(s){mx[s]=Math.max.apply(null,rows.map(function(r){return Math.abs(r.by[s])}))||1});
+  $("heatHead").innerHTML="<th>日期</th>"+
+    S.map(function(s){return '<th class="n">'+s+"</th>"}).join("")+'<th class="n">当日合计</th>';
+  $("heatBody").innerHTML=rows.map(function(r){
+    var tot=S.reduce(function(a,s){return a+r.by[s]},0);
+    return "<tr><td class='dim'>"+ds8(r.d)+"</td>"+S.map(function(s){
+      var v=r.by[s],t=Math.min(1,Math.abs(v)/mx[s]);
+      var bg=v>=0?"rgba(242,84,91,"+(0.08+0.55*t).toFixed(2)+")"
+                 :"rgba(46,163,107,"+(0.08+0.55*t).toFixed(2)+")";
+      return "<td class='heatcell' style='background:"+bg+"'>"+f(v,1,true)+"</td>";
+    }).join("")+"<td class='n'>"+f(tot,1,true)+"</td></tr>";
+  }).join("");
+}
 function render(D){
   var k=D.kpi;
   $("asof").textContent="份额数据截至 "+ds8(D.asof)+" · 样本 "+D.sample_days+" 个交易日";
   $("disc2").innerHTML="当前确认值日期：<b>"+ds8(D.asof)+"</b>。";
+  // 净流出日不能算「占全宽基 XX%」（会出现 -300% 这类无意义数字），也不能说「多风格一起进」
+  var posAll=k.nf>0, ratio=posAll?k.nf300/k.nf*100:null;
+  var sub300=posAll?"占全宽基 "+f(ratio,0)+"%":"全宽基当日净流出";
+  var sub20=(k.share300_20===null||k.share300_20===undefined)
+      ?"近20日净流出 · 占比不适用":"300 占 "+f(k.share300_20,0)+"%";
   $("kpi").innerHTML=
     card("全宽基 16 只 · 净流入",f(k.nf,1,true)+" 亿",k.pct.toFixed(0)+"% 分位 · 阈值 "+f(k.thr,1)+" 亿",k.nf>0?"up":"down")+
-    card("沪深300 八只 · 净流入",f(k.nf300,1,true)+" 亿","占全宽基 "+f(k.nf300/k.nf*100,0)+"%","")+
+    card("沪深300 八只 · 净流入",f(k.nf300,1,true)+" 亿",sub300,"")+
     card("篮子规模",f(k.aum,0)+" 亿","强度 "+f(k.inten,2,true)+"%","")+
     card("上证综指",f(k.idx,2),"截至 "+ds8(D.asof),"")+
-    card("近 20 日累计",f(k.sum20,0,true)+" 亿","300 占 "+f(k.share300_20,0)+"%",k.sum20>0?"up":"down");
+    card("近 20 日累计",f(k.sum20,0,true)+" 亿",sub20,k.sum20>0?"up":"down");
+  var structNote;
+  if(!posAll){
+    structNote="<b>当日全宽基为净流出/结构分化</b>，占比与「多风格一起进」均不适用；直接看下方各风格的正负号判断谁在流出。";
+  }else if(ratio<50){
+    structNote="<b>300 占比 "+f(ratio,0)+"% 低于一半 ⇒ 多风格同步流入</b>，不能按「国家队只买 300」解读。";
+  }else{
+    structNote="<b>300 占比 "+f(ratio,0)+"% 过半 ⇒ 当日资金集中在沪深300</b>，但这只是结构描述，不等于看多信号（见第五部分）。";
+  }
   $("kpnote").innerHTML="分风格（当日，亿）："+D.styles.map(function(s){
     return s+" <b class='"+(k.by[s]>0?"up":"down")+"'>"+f(k.by[s],1,true)+"</b>"}).join(" · ")+
-    "。<b>300 占比低于 50% 时，说明是多风格一起进，不能按「国家队买 300」解读。</b>";
+    "。"+structNote;
   $("c1").innerHTML=chartDaily(D.rows);
   $("c2").innerHTML=chartCum(D.rows);
   $("c3").innerHTML=chartStyle(D.style_month,D.styles);
@@ -490,17 +615,47 @@ function render(D){
   var b=D.rules.fx100_300;
   $("best").innerHTML="<b>"+f(b.cluster_mean,2,true)+"% / 胜率 "+f(b.cluster_win,0)+"%（"+b.clusters+" 个独立簇）</b>";
 
+  // 绝对金额阈值扫描（后端已算，之前漏渲染）
+  function scanRow(x,key){
+    var r=x[key],cl=(r.cluster_mean>D.base.t20?"up":"down");
+    return "<tr><td>&gt; "+x.th+" 亿</td><td class='n'>"+r.events+"</td><td class='n'>"+r.clusters+
+      "</td><td class='n "+cl+"'>"+f(r.cluster_mean,2,true)+"%</td><td class='n'>"+f(r.cluster_win,0)+"%</td></tr>";
+  }
+  $("scanAll").innerHTML=D.scan.map(function(x){return scanRow(x,"all")}).join("");
+  $("ScanC300").innerHTML=D.scan.map(function(x){return scanRow(x,"c300")}).join("");
+  // 分位五档（后端已算，之前漏渲染）
+  function quintRows(list){
+    return list.map(function(q){
+      var cl=q.t20[1]>D.base.t20?"up":"down";
+      return "<tr><td>"+q.label+"</td><td class='n'>"+q.n+"</td><td class='n'>"+f(q.t5[1],2,true)+
+        "%</td><td class='n "+cl+"'>"+f(q.t20[1],2,true)+"%</td><td class='n'>"+f(q.t20[3],0)+"%</td></tr>";
+    }).join("");
+  }
+  $("quintAll").innerHTML=quintRows(D.quint_all);
+  $("quint300").innerHTML=quintRows(D.quint_300);
+  renderHeat(D);
+
   var rowsHtml="",cur="";
+  function ncell(v){return "<td class='n "+(v>0?"up":v<0?"down":"dim")+"'>"+f(v,1,true)+"</td>"}
   D.basket.forEach(function(x){
     var g=x.style;
-    if(g!==cur){cur=g;rowsHtml+='<tr class="grp"><td colspan="5">'+esc(g)+"</td></tr>"}
+    if(g!==cur){cur=g;rowsHtml+='<tr class="grp"><td colspan="7">'+esc(g)+"</td></tr>"}
     rowsHtml+="<tr><td>"+x.code+"</td><td>"+esc(x.name)+"</td><td class='dim'>"+esc(x.style)+
-      "</td><td class='dim'>"+ds8(x.from||D.asof)+"</td><td><span class='badge hot'>计入净流入</span></td></tr>";
+      "</td><td class='dim'>"+ds8(x.from||D.asof)+"</td>"+ncell(x.d1)+ncell(x.d20)+
+      "<td><span class='badge hot'>计入净流入</span></td></tr>";
   });
-  rowsHtml+='<tr class="grp"><td colspan="5">仅行情参考 · 未计入净流入（深交所无公开日频份额接口）</td></tr>';
-  D.quotes.filter(function(q){return q.grp==="out"}).forEach(function(x){
+  var outs=D.quotes.filter(function(q){return q.grp==="out"});
+  rowsHtml+='<tr class="grp"><td colspan="7">仅行情 · 深市 9 只（深交所无公开日频份额接口，取不到历史份额）</td></tr>';
+  outs.filter(function(x){return x.reason!=="sse_not_in_baseline"}).forEach(function(x){
     rowsHtml+="<tr><td>"+x.code+"</td><td>"+esc(x.name)+"</td><td class='dim'>"+esc(x.style)+
-      "</td><td class='dim'>—</td><td><span class='badge'>仅行情</span></td></tr>";
+      "</td><td class='dim'>—</td><td class='n dim'>—</td><td class='n dim'>—</td>"+
+      "<td><span class='badge'>仅行情</span></td></tr>";
+  });
+  rowsHtml+='<tr class="grp"><td colspan="7">仅行情 · 沪市 560010（上交所份额可得，未纳入历史基线）</td></tr>';
+  outs.filter(function(x){return x.reason==="sse_not_in_baseline"}).forEach(function(x){
+    rowsHtml+="<tr><td>"+x.code+"</td><td>"+esc(x.name)+"</td><td class='dim'>"+esc(x.style)+
+      "</td><td class='dim'>—</td><td class='n dim'>—</td><td class='n dim'>—</td>"+
+      "<td><span class='badge'>沪市 · 待核验</span></td></tr>";
   });
   $("basket").innerHTML=rowsHtml;
 }
@@ -513,7 +668,9 @@ function togglePanel(){var p=$("panel");p.style.display=p.style.display==="none"
 function pollGen(){
   fetch("state.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()})
   .then(function(s){
-    var baseGen=(window.__gen||"");
+    // 用刚拉回来的 s.gen 兜底：若初始加载 state.json 偶发失败导致 __gen 为空，
+    // 不能让 30 秒后第一次轮询读到旧 gen 就误判「已更新」而提前 reload。
+    var baseGen=s.gen||window.__gen||"";
     var t0=Date.now(),done=false;
     var tk=setInterval(function(){
       var sec=Math.round((Date.now()-t0)/1000);

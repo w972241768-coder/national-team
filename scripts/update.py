@@ -183,6 +183,25 @@ def fetch_index():
     return ser
 
 
+def probe_sse(dt):
+    """健康检查：用「最近一个已确认份额日」回访上交所接口。
+
+    GitHub Actions 的 runner 在境外，能否访问 query.sse.com.cn 是整条自动更新链路的核心假设。
+    结果写进 docs/state.json，便于事后核对，不必去翻需要鉴权的 Actions 日志。
+    """
+    day = dt[:4] + "-" + dt[4:6] + "-" + dt[6:]
+    p = {"isPagination": "true", "pageHelp.pageSize": "10000",
+         "pageHelp.pageNo": "1", "pageHelp.beginPage": "1",
+         "pageHelp.cacheSize": "1", "pageHelp.endPage": "1",
+         "sqlId": SSE_SQLID, "STAT_DATE": day}
+    j = http_json(SSE_URL, params=p, headers=SSE_HEAD, timeout=30, retries=0)
+    if "__error__" in j:
+        return {"ok": False, "date": day, "error": j["__error__"][:140]}
+    res = j.get("result", [])
+    sample = next((x.get("TOT_VOL") for x in res if x.get("SEC_CODE") == "510300"), None)
+    return {"ok": True, "date": day, "rows": len(res), "v510300": sample}
+
+
 # ---------------------------------------------------------------- 计算层
 def quantile(a, q):
     s = sorted(a)
@@ -436,12 +455,17 @@ def main():
               separators=(",", ":"))
     os.replace(tmp, os.path.join(DOCS, "data.json"))
 
+    probe = probe_sse(max(d for d, v in shares.items()
+                          if isinstance(v, dict) and v and not v.get("_holiday")))
+    print("  上交所健康检查：%s" % json.dumps(probe, ensure_ascii=False), flush=True)
+
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
     state = {
         "gen": now.strftime("%Y%m%d-%H%M%S"),
         "asof": last["d"], "rows": len(rows),
         "built_cst": now.strftime("%Y-%m-%d %H:%M CST"),
         "source": "sse" if got else "baseline",
+        "sse_probe": probe,
         "warnings": WARNINGS,
     }
     json.dump(state, open(os.path.join(DOCS, "state.json"), "w", encoding="utf-8"),

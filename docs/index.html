@@ -573,9 +573,12 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
   .then(function(s){
     window.__gen=s.gen||"";
     var srcName={"sse":"上交所增量","baseline":"基线（本次无新增份额）"};
+    var pr=s.sse_probe;
+    var probeTxt=pr?(pr.ok?" · 上交所连通性 <b class='good'>正常（"+pr.date+" 返回 "+pr.rows+" 条）</b>"
+                          :" · 上交所连通性 <b class='warn'>异常</b>"):"";
     $("build").innerHTML="本次数据生成：<b>"+esc(s.built_cst||"--")+"</b> · 份额截至 <b>"+
       esc(s.asof||"--")+"</b> · 本次数据源 <b>"+esc(srcName[s.source]||s.source||"--")+"</b>"+
-      (s.warnings&&s.warnings.length?" · <span class='warn'>"+s.warnings.length+" 条取数警告</span>":"");
+      probeTxt+(s.warnings&&s.warnings.length?" · <span class='warn'>"+s.warnings.length+" 条取数警告</span>":"");
   }).catch(function(){});
 })();
 </script>

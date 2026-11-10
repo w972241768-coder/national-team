@@ -54,6 +54,13 @@ tbody tr:hover{background:rgba(255,255,255,.025)}
 .alert{background:rgba(242,84,91,.07);border:1px solid rgba(242,84,91,.3);border-radius:10px;padding:13px 16px;margin:12px 0;font-size:12.5px}
 .alert b{color:var(--red)}
 .okbox{background:rgba(46,163,107,.06);border:1px solid rgba(46,163,107,.25);border-radius:10px;padding:12px 16px;margin:12px 0;font-size:12.5px}
+.status{background:rgba(74,158,255,.06);border:1px solid rgba(74,158,255,.28);border-radius:10px;padding:11px 14px;margin:12px 0;font-size:12px;line-height:1.75}
+.status.warnbox{background:rgba(242,84,91,.07);border-color:rgba(242,84,91,.35)}
+.status b{color:var(--blue)}.status.warnbox b{color:var(--red)}
+.status ol{margin:5px 0 0 17px;padding:0}.status li{margin:2px 0}
+.status .hd{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}
+.status .hd b{font-size:12.5px}
+@media(max-width:820px){.status{font-size:11.5px;line-height:1.65}.status ol{margin-left:15px}}
 .btn{background:#26364a;border:1px solid #35506e;color:var(--txt);border-radius:7px;padding:6px 11px;font-size:12px;cursor:pointer}
 .btn:hover{background:#31465f}
 .btn.pri{background:#3d57e5;border-color:#3d57e5;color:#fff}
@@ -91,6 +98,11 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
   </div>
 </div>
 
+<div class="status" id="status">
+  <div class="hd" onclick="toggleStatus()"><b>📌 一眼看懂 · 常驻提醒（为什么手机上没有「实时」数据）</b><span class="dim" id="stflag">收起</span></div>
+  <div id="stbody"><ol id="stlist"><li class="dim">状态检测中…</li></ol></div>
+</div>
+
 <div class="alert" id="disclaimer">
   <b>口径提醒：</b>ETF 份额由上交所于 <b>T 日次日</b>公布，因此<b>盘中无法计算当日净流入</b>。
   本页盘中刷新的是 26 只 ETF 的<b>实时价格、涨跌幅、成交额</b>（真实时数据）；
@@ -111,7 +123,7 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
   <div class="note" style="margin:2px 0 7px">真实分钟数据（腾讯分时接口，每 60 秒刷新），
   <b>分子分母同为 16 只篮内口径</b>；已过滤 15:01~15:30 的盘后延续点并按统一时间轴前向填充。
   <b>不做「按交易分钟平摊」折算</b>——ETF 日内成交呈 U 型，以 510300 为例实测 10:00 实际累计占全日 17.8%
-  而线性假设只有 12.5%，平摊会把倍数虚高 1.43 倍。这里只给真实累计曲线与全日均值水平线。</div>
+  而线性假设只有 12.5%，平摊会把倍数虚高 1.43 倍。这里只给真实累计曲线与全日均值水平线。<br><span class='warn'>若显示「分时源暂时不可用」：腾讯分时接口偶发整体 501（服务端故障），与手机 / 网络无关；页面保留上一次成功曲线并 5 分钟自动重试。</span></div>
   <div id="intraday"></div>
 </div>
 
@@ -254,7 +266,14 @@ sqlId <code>COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L</code>）、新浪财经�
 
 <script>
 /* ====================== 全局 ====================== */
-var D=null, QCFG=[], TIMER=null, TICK=null, LASTQ=0, QMODE="fetch";
+var D=null, QCFG=[], TIMER=null, TICK=null, LASTQ=0;
+/* 移动端（iOS Safari / 微信 X5 / 安卓 WebView）对第三方域的 fetch 限制更严，
+   默认直接走 <script> 注入通道（腾讯返回 v_shXXXXXX="..." 全局变量，天然不受 CORS 约束）；
+   桌面仍先走 fetch。两条通道互为备份，并把成功的通道记进 localStorage。 */
+var MOBILE=/Mobile|iPhone|iPad|iPod|Android|MicroMessenger|Harmony/i.test(navigator.userAgent);
+var QMODE=MOBILE?"script":"fetch";
+try{var _qm=localStorage.getItem("ntQMode");if(_qm==="fetch"||_qm==="script")QMODE=_qm}catch(e){}
+var ST={asof:"--",built:"--",source:"--",warn:[],probe:null,qhow:"--",qn:0,qtime:"--",qerr:""};
 var REPO="w972241768-coder/national-team", WF="update.yml", REF="main";
 var C={bg:"#0b0f14",line:"#1f2a36",dim:"#8b98a5",red:"#f2545b",green:"#2ea36b",
        gold:"#e3b341",blue:"#4a9eff",purple:"#a371f7",teal:"#39c5cf"};
@@ -283,7 +302,8 @@ async function fetchQuotes(){
   var buf=await r.arrayBuffer();
   var txt;
   try{ txt=new TextDecoder("gbk").decode(buf); }
-  catch(e){ txt=new TextDecoder("utf-8").decode(buf); }
+  catch(e){ try{ txt=new TextDecoder("gb18030").decode(buf); }
+            catch(e2){ txt=new TextDecoder("utf-8").decode(buf); } }
   return parseQuotes(txt);
 }
 function parseQuotes(txt){
@@ -319,7 +339,7 @@ function fetchQuotesScript(){
     };
     s.onerror=function(){s.remove();reject(new Error("script load failed"))};
     document.head.appendChild(s);
-    setTimeout(function(){ if(s.parentNode){s.remove();reject(new Error("timeout"))} },12000);
+    setTimeout(function(){ if(s.parentNode){s.remove();reject(new Error("timeout"))} },8000);
   });
 }
 function renderQuotes(q){
@@ -366,7 +386,9 @@ function renderQuotes(q){
   $("qbody").innerHTML=html;
   var first=q[QCFG[0].code];
   if(first&&first.ts){
-    var t=first.ts; $("qtime").textContent=t.slice(8,10)+":"+t.slice(10,12)+":"+t.slice(12,14);
+    var t=first.ts;
+    ST.qtime=t.slice(8,10)+":"+t.slice(10,12)+":"+t.slice(12,14);
+    $("qtime").textContent=ST.qtime;
   }
   // 成交额放量基准：盘中今日值是「截至当前时刻累计」，全日均值是「全天」，
   // 两者相除会系统性低估 ⇒ 只在快照时间已过 15:00 后才给倍数。
@@ -389,31 +411,80 @@ function renderQuotes(q){
 async function loadQuotes(manual){
   if(!QCFG.length)return;
   $("qnote").innerHTML='<span class="dim">正在拉取实时行情…</span>';
-  var data=null, how="", e1=null;
-  // 记住失败过的通道：某些受限环境 fetch 会必现 CORS 报错，
-  // 一旦降级成功就直接走 script，避免每 15 秒在控制台刷一条红字。
-  if(QMODE==="fetch"){
-    try{ data=await fetchQuotes(); how="fetch"; }
-    catch(e){ e1=e; QMODE="script"; }
+  var data=null, how="", errs=[];
+  // 双通道互为备份：移动端默认 script（不受 CORS 限制），桌面默认 fetch；
+  // 任何一条成功就把它记进 localStorage，下次不再走必然失败的那条。
+  var order=QMODE==="script"?["script","fetch"]:["fetch","script"];
+  for(var i=0;i<order.length&&!data;i++){
+    try{
+      data=order[i]==="fetch"?await fetchQuotes():await fetchQuotesScript();
+      how=order[i]; QMODE=order[i];
+      try{localStorage.setItem("ntQMode",QMODE)}catch(e){}
+    }catch(e){errs.push(order[i]+": "+e.message)}
   }
   if(!data){
-    try{ data=await fetchQuotesScript(); how="script"; }
-    catch(e2){
-      $("qnote").innerHTML='<span class="err">实时源连接失败（'+
-        esc(e1?e1.message:"fetch 已禁用")+" / "+esc(e2.message)+
-        "）。本页历史数据不受影响；如在网络受限环境，请稍后点「立即刷新」重试。</span>";
-      $("dot").className="dot"; $("mkt").textContent="实时源不可用";
-      return;
-    }
+    var ua=navigator.userAgent;
+    var br=/MicroMessenger/i.test(ua)?"微信内置浏览器":
+           /iPhone|iPad|iPod/i.test(ua)?"iOS Safari":
+           /Android/i.test(ua)?"安卓浏览器":"当前浏览器";
+    ST.qhow="失败"; ST.qn=0; ST.qerr=errs.join(" / ");
+    $("qnote").innerHTML='<span class="err">实时源连接失败（'+esc(ST.qerr)+
+      "）。<b>"+esc(br)+"</b>可能拦截了第三方行情请求：请用系统浏览器（Safari / Chrome）直接打开本页，"+
+      "关闭无痕模式与「阻止跨站跟踪」后重试；历史数据不受影响。</span> "+
+      '<button class="btn" onclick="loadQuotes(true)">重试实时源</button>';
+    $("dot").className="dot"; $("mkt").textContent="实时源不可用";
+    updateStatus(); return;
   }
+  ST.qhow=how; ST.qn=Object.keys(data).length; ST.qerr="";
   LASTQ=Date.now();
   renderQuotes(data);
   var n=isTradingNow();
   $("dot").className="dot "+(n?"on":"off");
   $("mkt").textContent=n?"盘中":"已收盘 / 休市";
-  $("qnote").innerHTML="盘中每 <b>15 秒</b>自动刷新，收盘后每 <b>5 分钟</b>刷新一次。"+
+  $("qnote").innerHTML="按<b>北京时间</b>判断：盘中每 <b>15 秒</b>自动刷新，收盘后每 <b>5 分钟</b>刷新一次。"+
     "当前通道：<code>"+how+"</code>。行情为真实时数据；<b>当日净流入仍需等份额次日公布</b>。"+
     (manual?" <span class='good'>已手动刷新</span>":"");
+  updateStatus();
+}
+/* ===== 常驻状态条：把「为什么手机上没有实时数据」直接写在页面上，不用记 ===== */
+function bjClock(){
+  var b=new Date(Date.now()+(8+new Date().getTimezoneOffset()/60)*3600000);
+  return ("0"+b.getHours()).slice(-2)+":"+("0"+b.getMinutes()).slice(-2);
+}
+function localClock(){return new Date().toTimeString().slice(0,5)}
+function tzName(){var o=-new Date().getTimezoneOffset()/60;return o>=0?"UTC+"+o:"UTC"+o}
+function updateStatus(){
+  var el=$("status"); if(!el)return;
+  var trading=isTradingNow();
+  var srcName={"sse":"上交所增量","baseline":"基线（本次未取到新份额）"};
+  var bad=ST.warn.length>0||ST.source==="baseline";
+  el.className="status"+(bad?" warnbox":"");
+  var probe=ST.probe?(ST.probe.ok?"上交所连通正常":"上交所取数失败 "+
+      esc((ST.probe.error||"").replace(/^.*?:/,"").slice(0,40))):"上交所连通性未检测";
+  var rows=[];
+  rows.push("<b>① 数据</b>：份额截至 <b>"+esc(ST.asof)+"</b> · 本次构建 "+esc(ST.built)+
+    " · 数据源 <b>"+esc(srcName[ST.source]||ST.source)+"</b> · "+
+    (bad?'<span class="warn">'+probe+"；"+ST.warn.length+" 条取数警告 ⇒ KPI 为 0 / 沿用基线</span>":probe));
+  rows.push("<b>② 时间</b>：北京时间 <b>"+bjClock()+"</b>（"+
+    (trading?"盘中 · 15 秒刷新":"已收盘 / 休市 · 5 分钟刷新")+
+    "） · 你的设备 "+tzName()+" <b>"+localClock()+"</b> · 行情快照 <b>"+esc(ST.qtime)+
+    "</b>（收盘后定格不动属正常，不是手机故障）");
+  rows.push("<b>③ 铁律</b>：上交所份额 <b>T 日次日</b>才公布 ⇒ <b>盘中永远算不出当日净流入</b>；"+
+    "KPI 显示 0 或沿用上一确认值，是口径限制，不是没取到数。");
+  rows.push("<b>④ 实时行情</b>：当前通道 <code>"+esc(ST.qhow)+"</code> · "+
+    (ST.qerr?'<span class="warn">连接失败：'+esc(ST.qerr)+"</span>":
+      "<b>"+ST.qn+"</b> 只有效（浏览器直连腾讯，需允许第三方请求）")+
+    " · 若失败：换系统浏览器（Safari / Chrome）打开，勿用微信内置 / 无痕模式，关掉「阻止跨站跟踪」。");
+  rows.push("<b>⑤ 怎么用</b>：盘中看「一 · 实时行情」的量价与分时量能；收盘后看「二 · 已确认净流入」与历史曲线；"+
+    "资金结构<b>只作观察，不作买卖点</b>；右下「🔄 刷新日报」触发云端重算，需 GitHub Token。");
+  $("stlist").innerHTML=rows.map(function(x){return "<li>"+x+"</li>"}).join("");
+}
+function toggleStatus(){
+  var b=$("stbody"),hidden=b.style.display==="none";
+  b.style.display=hidden?"block":"none";
+  $("stflag").textContent=hidden?"收起":"展开";
+  try{if(hidden)localStorage.removeItem("ntStatus");
+      else localStorage.setItem("ntStatus","fold")}catch(e){}
 }
 function scheduleQuotes(){
   // 盘中 15 秒、盘后 5 分钟；定时器仍每 15 秒醒一次，只是非盘中时按 gap 决定是否真正发请求
@@ -428,6 +499,7 @@ function scheduleQuotes(){
     var s=Math.max(0,Math.round((gap-(Date.now()-LASTQ))/1000));
     $("cd").textContent=(trading?"盘中 ":"收盘 ")+
       (s>=60?Math.ceil(s/60)+"min":s+"s")+"后刷新";
+    if(new Date().getSeconds()===0)updateStatus();
   },1000);
 }
 
@@ -906,6 +978,11 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
     D=await r.json();
     QCFG=D.quotes;
     render(D);
+    ST.asof=D.asof||"--";
+    try{if(localStorage.getItem("ntStatus")==="fold"){
+      $("stbody").style.display="none";$("stflag").textContent="展开";
+    }}catch(e){}
+    updateStatus();
     var saved=localStorage.getItem("ntGhToken");
     if(saved){$("tok").value=saved;$("tok").placeholder="已保存（可留空直接触发）"}
     loadQuotes(true); scheduleQuotes();
@@ -917,6 +994,10 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
   fetch("state.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()})
   .then(function(s){
     window.__gen=s.gen||"";
+    ST.asof=s.asof||ST.asof; ST.built=s.built_cst||"--";
+    ST.source=s.source||"--"; ST.warn=(s.warnings||[]).slice();
+    ST.probe=s.sse_probe||null;
+    updateStatus();
     var srcName={"sse":"上交所增量","baseline":"基线（本次无新增份额）"};
     var pr=s.sse_probe;
     var probeTxt=pr?(pr.ok?" · 上交所连通性 <b class='good'>正常（"+pr.date+" 返回 "+pr.rows+" 条）</b>"

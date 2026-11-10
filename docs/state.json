@@ -1,14 +1,15 @@
 {
-  "gen": "20261110-153541",
+  "gen": "20261110-194321",
   "asof": "20261109",
   "rows": 2877,
-  "built_cst": "2026-11-10 15:35 CST",
-  "source": "sse",
+  "built_cst": "2026-11-10 19:43 CST",
+  "source": "baseline",
   "sse_probe": {
-    "ok": true,
+    "ok": false,
     "date": "2026-11-09",
-    "rows": 923,
-    "v510300": "4666818.77"
+    "error": "HTTPError: 403 Client Error: Forbidden for url: https://query.sse.com.cn/commonQuery.do?isPagination=true&pageH"
   },
-  "warnings": []
+  "warnings": [
+    "上交所 1/1 天请求失败（多因份额未公布，或境外 runner 不可达），保持基线：20261110"
+  ]
 }

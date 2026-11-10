@@ -186,7 +186,12 @@ def sina_kline(symbol, datalen):
 def update_nav(base):
     print("  价格：抓 16 只 ETF 最近 30 根日线（增量）", flush=True)
     for fu in as_completed([_SUBMIT_NAV(c) for c in BASKET]):
-        code, ser = fu.result()
+        sym, ser = fu.result()
+        # sina_kline 返回带市场前缀的 symbol（sh510300），而 build() 用纯代码
+        # （510300）取价。曾把 symbol 直接当 code 写回，增量价格全落进另一组键，
+        # 计算层永远只读到旧基线 ⇒ 11-05 起净流入/规模被算成 0（KPI 一片 0）。
+        # 这里统一去掉前缀，确保增量真正并进纯代码序列。
+        code = sym[2:] if sym[:2] in ("sh", "sz") else sym
         if ser:
             base.setdefault(code, {}).update(ser)
         else:

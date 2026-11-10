@@ -186,17 +186,25 @@ def _d8(s):
     return s[:4] + "-" + s[4:6] + "-" + s[6:8] if len(s) == 8 else s
 
 
-def embed_verdict(v, html_path, quotes=None):
+def embed_verdict(v, html_path, quotes=None, lite=None):
     """幂等替换 index.html 里的 VERDICT 块，并内嵌精简快照供 JS 覆盖使用。
 
     quotes（26 只代码表，约 2 KB）一并内嵌：即使 data.json 完全不可用，
     实时行情与分时曲线仍能靠浏览器直连腾讯跑起来，不必等历史数据。
+
+    lite = 去掉 rows 的完整统计结果（约 39 KB）。手机弱网时 343 KB 的
+    data.json 常常超时，导致 KPI / 所有明细表格一并空白；把轻版明细
+    直接写进 HTML，页面一打开就有具体数据，联网后再用 data.json 覆盖。
     """
     html = open(html_path, "r", encoding="utf-8").read()
     if START not in html or END not in html:
         raise RuntimeError("index.html 缺少 VERDICT 标记块，无法内嵌结论")
-    snap = json.dumps({"verdict": v, "quotes": quotes or []},
-                      ensure_ascii=False, separators=(",", ":"))
+    snap_obj = {"verdict": v, "quotes": quotes or []}
+    if lite:
+        snap_obj["lite"] = lite
+    snap = json.dumps(snap_obj, ensure_ascii=False, separators=(",", ":"))
+    # 防止数据里出现 </script> 提前闭合内嵌 JSON 块
+    snap = snap.replace("</", "<\\/")
     block = (START + "\n" + render_html(v) +
              '<script id="ntSnapshot" type="application/json">' + snap + '</script>\n' + END)
     new = re.sub(re.escape(START) + r".*?" + re.escape(END),

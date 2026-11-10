@@ -599,11 +599,6 @@ def main():
     json.dump(nav, open(os.path.join(DATA, "nav.json"), "w", encoding="utf-8"),
               ensure_ascii=False)
 
-    tmp = os.path.join(DOCS, "data.json.tmp")
-    json.dump(payload, open(tmp, "w", encoding="utf-8"), ensure_ascii=False,
-              separators=(",", ":"))
-    os.replace(tmp, os.path.join(DOCS, "data.json"))
-
     now = datetime.datetime.utcnow() + datetime.timedelta(hours=8)
     state = {
         "gen": now.strftime("%Y%m%d-%H%M%S"),
@@ -613,8 +608,25 @@ def main():
         "sse_probe": probe,
         "warnings": WARNINGS,
     }
+
+    # 结论前置：同一份 verdict 同时进 data.json（联网时 JS 覆盖）与
+    # index.html 的静态块（手机弱网 / data.json 失败时仍能一眼看到结论）。
+    from verdict import make_verdict, embed_verdict
+    payload["verdict"] = make_verdict(payload, state)
+
+    tmp = os.path.join(DOCS, "data.json.tmp")
+    json.dump(payload, open(tmp, "w", encoding="utf-8"), ensure_ascii=False,
+              separators=(",", ":"))
+    os.replace(tmp, os.path.join(DOCS, "data.json"))
     json.dump(state, open(os.path.join(DOCS, "state.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
+
+    try:
+        changed = embed_verdict(payload["verdict"], os.path.join(DOCS, "index.html"),
+                                payload.get("quotes", []))
+        print("  结论内嵌：%s" % ("已更新 index.html" if changed else "内容无变化"), flush=True)
+    except Exception as e:
+        warn("结论内嵌失败（不影响数据）：%s" % e)
 
     print("\n完成：%s | 净流入 %+.1f 亿 | 样本 %d 天 | 新增份额 %d 天 | 警告 %d 条"
           % (last["d"], last["nf"], len(rows), got, len(WARNINGS)), flush=True)

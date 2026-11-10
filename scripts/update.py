@@ -621,12 +621,18 @@ def main():
     json.dump(state, open(os.path.join(DOCS, "state.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
 
-    try:
-        changed = embed_verdict(payload["verdict"], os.path.join(DOCS, "index.html"),
-                                payload.get("quotes", []))
-        print("  结论内嵌：%s" % ("已更新 index.html" if changed else "内容无变化"), flush=True)
-    except Exception as e:
-        warn("结论内嵌失败（不影响数据）：%s" % e)
+    # CI 里刻意跳过：workflow 当前未把 index.html 纳入 git add，
+    # 若在此处改动会产生未提交文件，可能阻塞后续的 pull --rebase / push。
+    # 在线结论由 data.json.verdict 每日提交，离线快照由浏览器 localStorage 保鲜。
+    if os.environ.get("GITHUB_ACTIONS"):
+        print("  结论内嵌：CI 环境跳过（在线结论走 data.json.verdict）", flush=True)
+    else:
+        try:
+            changed = embed_verdict(payload["verdict"], os.path.join(DOCS, "index.html"),
+                                    payload.get("quotes", []))
+            print("  结论内嵌：%s" % ("已更新 index.html" if changed else "内容无变化"), flush=True)
+        except Exception as e:
+            warn("结论内嵌失败（不影响数据）：%s" % e)
 
     print("\n完成：%s | 净流入 %+.1f 亿 | 样本 %d 天 | 新增份额 %d 天 | 警告 %d 条"
           % (last["d"], last["nf"], len(rows), got, len(WARNINGS)), flush=True)

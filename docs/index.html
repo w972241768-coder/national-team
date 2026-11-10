@@ -273,7 +273,7 @@ var D=null, QCFG=[], TIMER=null, TICK=null, LASTQ=0;
 var MOBILE=/Mobile|iPhone|iPad|iPod|Android|MicroMessenger|Harmony/i.test(navigator.userAgent);
 var QMODE=MOBILE?"script":"fetch";
 try{var _qm=localStorage.getItem("ntQMode");if(_qm==="fetch"||_qm==="script")QMODE=_qm}catch(e){}
-var ST={asof:"--",built:"--",source:"--",warn:[],probe:null,qhow:"--",qn:0,qtime:"--",qerr:""};
+var ST={asof:"--",built:"--",source:"--",warn:[],probe:null,qhow:"--",qn:0,qtime:"--",qerr:"",nf:0,aum:0};
 var REPO="w972241768-coder/national-team", WF="update.yml", REF="main";
 var C={bg:"#0b0f14",line:"#1f2a36",dim:"#8b98a5",red:"#f2545b",green:"#2ea36b",
        gold:"#e3b341",blue:"#4a9eff",purple:"#a371f7",teal:"#39c5cf"};
@@ -412,16 +412,24 @@ async function loadQuotes(manual){
   if(!QCFG.length)return;
   $("qnote").innerHTML='<span class="dim">正在拉取实时行情…</span>';
   var data=null, how="", errs=[];
-  // 双通道互为备份：移动端默认 script（不受 CORS 限制），桌面默认 fetch；
-  // 任何一条成功就把它记进 localStorage，下次不再走必然失败的那条。
-  var order=QMODE==="script"?["script","fetch"]:["fetch","script"];
-  for(var i=0;i<order.length&&!data;i++){
-    try{
-      data=order[i]==="fetch"?await fetchQuotes():await fetchQuotesScript();
-      how=order[i]; QMODE=order[i];
-      try{localStorage.setItem("ntQMode",QMODE)}catch(e){}
-    }catch(e){errs.push(order[i]+": "+e.message)}
-  }
+  /* 双通道并行竞速：移动浏览器策略差异很大（iOS 智能防跟踪拦 fetch、
+     部分内核拒执行 text/html 的第三方脚本），用 UA 猜通道会两头落空。
+     两条同时发，谁先拿到有效数据用谁；失败那条自己跑完，不拖慢成功的一条。 */
+  await new Promise(function(resolve){
+    var settled=0, done=false;
+    function fin(name,val,err){
+      if(done)return;
+      if(val&&Object.keys(val).length){
+        done=true; data=val; how=name; QMODE=name;
+        try{localStorage.setItem("ntQMode",name)}catch(e){}
+        resolve(); return;
+      }
+      if(err)errs.push(name+": "+err);
+      if(++settled>=2)resolve();
+    }
+    fetchQuotes().then(function(v){fin("fetch",v,null)},function(e){fin("fetch",null,e.message)});
+    fetchQuotesScript().then(function(v){fin("script",v,null)},function(e){fin("script",null,e.message)});
+  });
   if(!data){
     var ua=navigator.userAgent;
     var br=/MicroMessenger/i.test(ua)?"微信内置浏览器":
@@ -456,21 +464,20 @@ function tzName(){var o=-new Date().getTimezoneOffset()/60;return o>=0?"UTC+"+o:
 function updateStatus(){
   var el=$("status"); if(!el)return;
   var trading=isTradingNow();
-  var srcName={"sse":"上交所增量","baseline":"基线（本次未取到新份额）"};
-  var bad=ST.warn.length>0||ST.source==="baseline";
+  var srcName={"sse":"上交所增量","baseline":"基线（无新增份额日，正常）"};
+  var bad=ST.warn.length>0||!!(ST.probe&&ST.probe.ok===false);
   el.className="status"+(bad?" warnbox":"");
   var probe=ST.probe?(ST.probe.ok?"上交所连通正常":"上交所取数失败 "+
       esc((ST.probe.error||"").replace(/^.*?:/,"").slice(0,40))):"上交所连通性未检测";
   var rows=[];
-  rows.push("<b>① 数据</b>：份额截至 <b>"+esc(ST.asof)+"</b> · 本次构建 "+esc(ST.built)+
-    " · 数据源 <b>"+esc(srcName[ST.source]||ST.source)+"</b> · "+
-    (bad?'<span class="warn">'+probe+"；"+ST.warn.length+" 条取数警告 ⇒ KPI 为 0 / 沿用基线</span>":probe));
+  rows.push("<b>① 两个日期别混</b>：<b>"+esc(ST.asof)+"</b> = 份额数据日（T+1 公布，必然是上一交易日）；<b>"+esc(ST.built)+"</b> = 文件生成时间（今天跑的）。两者不同属正常 · 已确认值 <b>"+f(ST.nf,1,true)+" 亿 / 规模 "+f(ST.aum,0)+" 亿</b> · 数据源 <b>"+esc(srcName[ST.source]||ST.source)+"</b> · "+
+    (bad?'<span class="warn">'+probe+"；"+ST.warn.length+" 条取数告警（仅表示今日增量未取到，不影响上方已确认值）</span>":probe));
   rows.push("<b>② 时间</b>：北京时间 <b>"+bjClock()+"</b>（"+
     (trading?"盘中 · 15 秒刷新":"已收盘 / 休市 · 5 分钟刷新")+
     "） · 你的设备 "+tzName()+" <b>"+localClock()+"</b> · 行情快照 <b>"+esc(ST.qtime)+
     "</b>（收盘后定格不动属正常，不是手机故障）");
   rows.push("<b>③ 铁律</b>：上交所份额 <b>T 日次日</b>才公布 ⇒ <b>盘中永远算不出当日净流入</b>；"+
-    "KPI 显示 0 或沿用上一确认值，是口径限制，不是没取到数。");
+    "KPI 是<b>最近一个已确认份额日</b>的值，不是今天的实时值；若净流入与规模同时为 0，说明当日数据未齐，页面会另行提示。");
   rows.push("<b>④ 实时行情</b>：当前通道 <code>"+esc(ST.qhow)+"</code> · "+
     (ST.qerr?'<span class="warn">连接失败：'+esc(ST.qerr)+"</span>":
       "<b>"+ST.qn+"</b> 只有效（浏览器直连腾讯，需允许第三方请求）")+
@@ -787,8 +794,9 @@ function renderHeat(D){
 }
 function render(D){
   var k=D.kpi;
-  $("asof").textContent="份额数据截至 "+ds8(D.asof)+" · 样本 "+D.sample_days+" 个交易日";
-  $("disc2").innerHTML="当前确认值日期：<b>"+ds8(D.asof)+"</b>。";
+  ST.nf=k.nf; ST.aum=k.aum;
+  $("asof").innerHTML="份额数据截至 <b>"+ds8(D.asof)+"</b>（T+1 公布，所以是上一交易日） · 样本 "+D.sample_days+" 个交易日";
+  $("disc2").innerHTML="当前确认值日期：<b>"+ds8(D.asof)+"</b>。页面底部的「本次数据生成」是<b>文件生成时间</b>（今天跑的），不是行情日期，两个日期不同属正常。";
   // 占比只在「全宽基为正 且 300 为正 且 300 不超过总额」时才有意义。
   // 反例：全宽基 +10 亿而 300 +80 亿（其余风格 -70 亿）⇒ 800%；
   //       全宽基 +50 亿而 300 -20 亿 ⇒ -40% 并误触「多风格同步流入」。
@@ -822,7 +830,9 @@ function render(D){
     card("篮子规模",f(k.aum,0)+" 亿","强度 "+f(k.inten,2,true)+"%","")+
     card("上证综指",f(k.idx,2),"截至 "+ds8(D.asof),"")+
     card("近 20 日累计",f(k.sum20,0,true)+" 亿",sub20,k.sum20>0?"up":"down");
-  $("kpnote").innerHTML="分风格（当日，亿）："+D.styles.map(function(s){
+  $("kpnote").innerHTML=(k.aum<=0
+      ?'<span class="warn">⚠️ 该交易日份额或价格未齐，净流入 / 规模暂不可算，卡片里的 0 不代表真实为 0；请看下方的日度曲线看最近一次有效确认值。</span><br>'
+      :"")+"分风格（当日，亿）："+D.styles.map(function(s){
     return s+" <b class='"+(k.by[s]>0?"up":"down")+"'>"+f(k.by[s],1,true)+"</b>"}).join(" · ")+
     "。"+structNote;
   $("c1").innerHTML=chartDaily(D.rows);
@@ -998,11 +1008,11 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
     ST.source=s.source||"--"; ST.warn=(s.warnings||[]).slice();
     ST.probe=s.sse_probe||null;
     updateStatus();
-    var srcName={"sse":"上交所增量","baseline":"基线（本次无新增份额）"};
+    var srcName={"sse":"上交所增量","baseline":"基线（无新增份额日，正常）"};
     var pr=s.sse_probe;
     var probeTxt=pr?(pr.ok?" · 上交所连通性 <b class='good'>正常（"+pr.date+" 返回 "+pr.rows+" 条）</b>"
                           :" · 上交所连通性 <b class='warn'>异常</b>"):"";
-    $("build").innerHTML="本次数据生成：<b>"+esc(s.built_cst||"--")+"</b> · 份额截至 <b>"+
+    $("build").innerHTML="本次数据生成（文件时间，非行情日期）：<b>"+esc(s.built_cst||"--")+"</b> · 份额数据截至 <b>"+
       esc(s.asof||"--")+"</b> · 本次数据源 <b>"+esc(srcName[s.source]||s.source||"--")+"</b>"+
       probeTxt+(s.warnings&&s.warnings.length?" · <span class='warn'>"+s.warnings.length+" 条取数警告</span>":"");
   }).catch(function(){});

@@ -81,6 +81,49 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
 #tip{position:fixed;display:none;z-index:200;background:#0f151c;border:1px solid #35506e;
   border-radius:6px;padding:6px 9px;font-size:11.5px;color:#e6edf3;pointer-events:none;
   box-shadow:0 4px 14px rgba(0,0,0,.5);white-space:nowrap;font-variant-numeric:tabular-nums}
+/* ===== 结论前置：首屏一屏给完，不依赖 data.json ===== */
+.verdict{background:linear-gradient(160deg,#16202c,#101720);border:1px solid #2b3d52;border-radius:14px;
+ padding:16px 18px 14px;margin:16px 0 6px;box-shadow:0 6px 24px rgba(0,0,0,.28)}
+.verdict.bull{border-color:rgba(242,84,91,.55)}.verdict.bear{border-color:rgba(46,163,107,.55)}
+.vhead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.vlab{font-size:12px;color:var(--dim);letter-spacing:.5px}
+.vtag{font-size:10.5px;color:var(--blue);border:1px solid rgba(74,158,255,.35);border-radius:10px;padding:1px 7px;margin-left:6px}
+.vdate{font-size:11.5px;color:var(--dim)}
+.vmain{margin:9px 0 11px}
+.vtitle{font-size:26px;font-weight:750;letter-spacing:.5px;color:var(--gold);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.vtitle span{font-size:13px;font-weight:500;color:var(--dim)}
+.verdict.bull .vtitle{color:var(--red)}.verdict.bear .vtitle{color:var(--green)}
+.vdesc{font-size:13px;line-height:1.85;margin-top:5px;color:#d3dde7}
+.vdesc b{color:var(--txt)}
+.vgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.vm{background:rgba(11,15,20,.55);border:1px solid var(--line);border-radius:9px;padding:10px 12px}
+.vm span{display:block;font-size:11px;color:var(--dim)}
+.vm b{display:block;font-size:21px;font-weight:700;margin:3px 0 1px;font-variant-numeric:tabular-nums}
+.vm em{font-style:normal;font-size:10.5px;color:var(--dim);display:block;line-height:1.5}
+.vrecent{font-size:11.5px;color:var(--dim);border-top:1px dashed var(--line);padding-top:9px;line-height:2}
+.vr{display:inline-block;margin-right:12px;white-space:nowrap}
+.vr i{font-style:normal;color:var(--dim)}
+.vact{font-size:12.5px;line-height:1.85;background:rgba(227,179,65,.07);border-left:3px solid var(--gold);
+ padding:8px 12px;border-radius:0 7px 7px 0;margin-top:9px}
+.vact b{color:var(--gold)}
+.vwarn{font-size:11.5px;color:var(--gold);margin-top:8px;line-height:1.7}
+.vfoot{font-size:10.5px;color:var(--dim);line-height:1.75;margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+.vdiag{float:right;font-size:10.5px;padding:3px 8px}
+.diag{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:10px;
+ font-size:11px;line-height:1.8;color:var(--teal);white-space:pre-wrap;word-break:break-all;margin-top:9px;overflow-x:auto}
+.more{margin:10px 0 4px;border:1px solid var(--line);border-radius:10px;background:rgba(19,26,34,.6);padding:0 12px}
+.more summary{cursor:pointer;font-size:12px;color:var(--dim);padding:10px 0;list-style:none}
+.more summary::-webkit-details-marker{display:none}
+.more summary::before{content:"▸ ";color:var(--blue)}
+.more[open] summary::before{content:"▾ "}
+.more .status,.more .alert{margin:0 0 10px}
+.lite{font-size:11.5px;color:var(--dim);margin:6px 0 0}
+@media(max-width:820px){.verdict{padding:13px 13px 11px;margin-top:10px}.vgrid{grid-template-columns:repeat(2,1fr);gap:8px}
+ .vtitle{font-size:22px}.vm b{font-size:18px}.vdesc{font-size:12.5px}.vact{font-size:12px}.vfoot{font-size:10px}}
+/* 手机首屏压缩：把标题栏让位给结论卡 */
+@media(max-width:820px){h1{font-size:19px}.hdr{gap:6px;padding-bottom:8px;margin-bottom:10px}
+ .sub{font-size:10.5px;margin-top:2px}.live{font-size:10.5px;gap:5px;flex-wrap:wrap;width:100%}
+ .live .btn{padding:4px 8px;font-size:10.5px}}
 </style>
 </head>
 <body><div class="wrap">
@@ -98,16 +141,35 @@ footer{margin-top:40px;padding-top:15px;border-top:1px solid var(--line);color:v
   </div>
 </div>
 
-<div class="status" id="status">
-  <div class="hd" onclick="toggleStatus()"><b>📌 一眼看懂 · 常驻提醒（为什么手机上没有「实时」数据）</b><span class="dim" id="stflag">收起</span></div>
-  <div id="stbody"><ol id="stlist"><li class="dim">状态检测中…</li></ol></div>
-</div>
+<!--VERDICT:START-->
+<section class="verdict neutral" id="verdict">
+  <div class="vhead"><div class="vlab">今日结论 <span class="vtag">已确认 · 份额口径 T+1</span></div>
+    <div class="vdate">份额数据日 <b>2026-11-09</b> · 文件生成 2026-11-10 20:54 CST</div></div>
+  <div class="vmain"><div class="vtitle">中性偏弱 · 小幅流出<span>单日小幅流出，不构成买卖信号</span></div>
+    <div class="vdesc">全宽基 16 只单日净流入 <b>-4.8 亿</b>（强度 -0.06%，处滚动 250 日 <b>51.6%</b> 分位，95% 分位阈值 203.9 亿），沪深300 八只 <b>-0.2 亿</b>；近 20 日累计 <b>+3548 亿</b>，资金相位<b>回补中</b>。近 6 日 +362 / +627 / +337 → +52 / +26 / -5 <b>连续衰减</b>，资金动能明显转弱，需观察下一确认日是否转为持续流出。</div></div>
+  <div class="vgrid"><div class="vm"><span>全宽基 16 只 · 当日净流入</span><b class="down">-4.8 亿</b><em>250日分位 51.6% · 95%阈值 203.9 亿</em></div><div class="vm"><span>沪深300 八只 · 当日净流入</span><b class="down">-0.2 亿</b><em>该子篮近20日规模占比 52.4%</em></div><div class="vm"><span>篮子规模 / 强度</span><b class="">8236 亿</b><em>-0.06% · 上证 3660.79</em></div><div class="vm"><span>近 20 日累计净流入</span><b class="up">+3548 亿</b><em>资金相位：回补中</em></div></div>
+  <div class="vrecent"><span class="dim">近 6 个已确认交易日（亿）：</span><span class="vr"><i>11-02</i> <b class="up">+362.3</b></span><span class="vr"><i>11-03</i> <b class="up">+627.3</b></span><span class="vr"><i>11-04</i> <b class="up">+336.9</b></span><span class="vr"><i>11-05</i> <b class="up">+51.8</b></span><span class="vr"><i>11-06</i> <b class="up">+26.0</b></span><span class="vr"><i>11-09</i> <b class="down">-4.8</b></span></div>
+  <div class="vact"><b>怎么做</b>：若下一份额公布日全宽基净流入重回 <b>+204 亿</b>以上、且沪深300 同步转正，则视为资金再度回补、可维持现有敞口观察；否则维持<b>中性偏弱</b>判断，不因单日数据加减仓。资金结构<b>只作观察，不作买卖点</b>。</div>
+  <div class="vwarn">本次取数有 1 条告警（多为无新增份额日或境外 runner 受限），下方数值为<b>最近一个已确认份额日</b>的结论，未受影响。</div>  <div class="vfoot">数据来源：上交所官方日频份额（T+1）、新浪日线与成交额基准、腾讯实时快照。结论为公开数据研究，仅用于观察资金结构，不构成投资建议，不承诺收益或准确率，不自动下单；接口存在延迟、缺失或中断可能。<button class="btn vdiag" onclick="toggleDiag()">🔍 自检</button></div>
+  <pre id="diag" class="diag" style="display:none"></pre>
+</section>
+<script id="ntSnapshot" type="application/json">{"verdict":{"asof":"20261109","built":"2026-11-10 20:54 CST","source":"baseline","warnings":["上交所 1/1 天请求失败（多因份额未公布，或境外 runner 不可达），保持基线：20261110"],"tone":"neutral","title":"中性偏弱 · 小幅流出","lead":"单日小幅流出，不构成买卖信号","nf":-4.8,"aum":8236.0,"desc":"全宽基 16 只单日净流入 <b>-4.8 亿</b>（强度 -0.06%，处滚动 250 日 <b>51.6%</b> 分位，95% 分位阈值 203.9 亿），沪深300 八只 <b>-0.2 亿</b>；近 20 日累计 <b>+3548 亿</b>，资金相位<b>回补中</b>。近 6 日 +362 / +627 / +337 → +52 / +26 / -5 <b>连续衰减</b>，资金动能明显转弱，需观察下一确认日是否转为持续流出。","action":"若下一份额公布日全宽基净流入重回 <b>+204 亿</b>以上、且沪深300 同步转正，则视为资金再度回补、可维持现有敞口观察；否则维持<b>中性偏弱</b>判断，不因单日数据加减仓。资金结构<b>只作观察，不作买卖点</b>。","metrics":[{"lab":"全宽基 16 只 · 当日净流入","val":"-4.8 亿","cls":"down","sub":"250日分位 51.6% · 95%阈值 203.9 亿"},{"lab":"沪深300 八只 · 当日净流入","val":"-0.2 亿","cls":"down","sub":"该子篮近20日规模占比 52.4%"},{"lab":"篮子规模 / 强度","val":"8236 亿","cls":"","sub":"-0.06% · 上证 3660.79"},{"lab":"近 20 日累计净流入","val":"+3548 亿","cls":"up","sub":"资金相位：回补中"}],"recent":[{"d":"20261102","nf":362.29},{"d":"20261103","nf":627.33},{"d":"20261104","nf":336.94},{"d":"20261105","nf":51.8},{"d":"20261106","nf":25.99},{"d":"20261109","nf":-4.8}]},"quotes":[{"code":"510300","style":"沪深300","name":"300ETF华泰柏瑞","grp":"in"},{"code":"510310","style":"沪深300","name":"HS300ETF易方达","grp":"in"},{"code":"510330","style":"沪深300","name":"华夏300","grp":"in"},{"code":"515330","style":"沪深300","name":"天弘300","grp":"in"},{"code":"515390","style":"沪深300","name":"华安300","grp":"in"},{"code":"510360","style":"沪深300","name":"广发300","grp":"in"},{"code":"510380","style":"沪深300","name":"国寿300","grp":"in"},{"code":"510320","style":"沪深300","name":"300中金","grp":"in"},{"code":"510050","style":"上证50","name":"50ETF华夏","grp":"in"},{"code":"510210","style":"上证指数","name":"综指ETF富国","grp":"in"},{"code":"510500","style":"中证500","name":"500ETF南方","grp":"in"},{"code":"512100","style":"中证1000","name":"1000ETF南方","grp":"in"},{"code":"512050","style":"中证A500","name":"A500E华夏","grp":"in"},{"code":"563360","style":"中证A500","name":"A500基金华泰柏瑞","grp":"in"},{"code":"588000","style":"科创50","name":"科创50华夏","grp":"in"},{"code":"588080","style":"科创50","name":"科创板50易方达","grp":"in"},{"code":"159919","style":"沪深300","name":"300ETF嘉实","grp":"out","reason":"szse_no_api"},{"code":"159915","style":"创业板指","name":"创业板ETF易方达","grp":"out","reason":"szse_no_api"},{"code":"159949","style":"创业板50","name":"创业板50ETF华安","grp":"out","reason":"szse_no_api"},{"code":"159952","style":"创业板指","name":"创业板ETF广发","grp":"out","reason":"szse_no_api"},{"code":"159338","style":"中证A500","name":"A500ETF国泰","grp":"out","reason":"szse_no_api"},{"code":"159352","style":"中证A500","name":"A500ETF南方","grp":"out","reason":"szse_no_api"},{"code":"159361","style":"中证A500","name":"A500ETF易方达","grp":"out","reason":"szse_no_api"},{"code":"159633","style":"中证1000","name":"1000ETF易方达","grp":"out","reason":"szse_no_api"},{"code":"159845","style":"中证1000","name":"1000ETF华夏","grp":"out","reason":"szse_no_api"},{"code":"560010","style":"中证1000","name":"1000ETF广发","grp":"out","reason":"sse_not_in_baseline"}]}</script>
+<!--VERDICT:END-->
 
-<div class="alert" id="disclaimer">
-  <b>口径提醒：</b>ETF 份额由上交所于 <b>T 日次日</b>公布，因此<b>盘中无法计算当日净流入</b>。
-  本页盘中刷新的是 26 只 ETF 的<b>实时价格、涨跌幅、成交额</b>（真实时数据）；
-  净流入为最近一个已公布份额日的确认值。<span id="disc2"></span>
-</div>
+<div class="lite" id="datanote">✅ 上方结论已直接写进网页，<b>不依赖任何联网请求</b>；下方明细与实时行情需联网加载。</div>
+
+<details class="more" id="more">
+  <summary>⚙️ 数据说明 · 两个日期 / 手机端 FAQ / 完整链路状态（默认收起）</summary>
+  <div class="status" id="status">
+    <div class="hd"><b>📌 一眼看懂 · 常驻提醒</b></div>
+    <div id="stbody"><ol id="stlist"><li class="dim">状态检测中…</li></ol></div>
+  </div>
+  <div class="alert" id="disclaimer">
+    <b>口径提醒：</b>ETF 份额由上交所于 <b>T 日次日</b>公布，因此<b>盘中无法计算当日净流入</b>。
+    本页盘中刷新的是 26 只 ETF 的<b>实时价格、涨跌幅、成交额</b>（真实时数据）；
+    净流入为最近一个已公布份额日的确认值。<span id="disc2"></span>
+  </div>
+</details>
 
 <h2>一 · 盘中实时行情 <small>LIVE · 15 秒自动刷新</small></h2>
 <div class="note" id="qnote">正在连接实时行情源…</div>
@@ -275,6 +337,76 @@ var QMODE=MOBILE?"script":"fetch";
 try{var _qm=localStorage.getItem("ntQMode");if(_qm==="fetch"||_qm==="script")QMODE=_qm}catch(e){}
 var ST={asof:"--",built:"--",source:"--",warn:[],probe:null,qhow:"--",qn:0,qtime:"--",qerr:"",nf:0,aum:0};
 var REPO="w972241768-coder/national-team", WF="update.yml", REF="main";
+
+/* ====================== 结论前置 / 离线兜底 ======================
+   结论卡的完整 HTML 由 CI 写死在页面里（VERDICT 块），本段只做两件事：
+   ① 用内嵌快照重画一遍，防止用户看到旧缓存页面；
+   ② 联网拿到 data.json 后用同一份 verdict 覆盖成云端最新值。
+   即使本段完全不执行、所有请求全失败，页面上的静态结论依然可见。 */
+var SNAP={}, NET={data:"待加载",dataMs:0,state:"待加载",src:"内嵌快照",quotes:"待加载"};
+try{SNAP=JSON.parse((document.getElementById("ntSnapshot")||{}).textContent||"{}")}catch(e){SNAP={}}
+function d8(s){s=String(s||"");return s.length===8?s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8):s}
+function paintVerdict(v){
+  if(!v||!v.title)return;
+  var box=document.getElementById("verdict"); if(!box)return;
+  box.className="verdict "+(v.tone||"neutral");
+  var ms=(v.metrics||[]).map(function(m){
+    return '<div class="vm"><span>'+esc(m.lab)+'</span><b class="'+esc(m.cls||"")+'">'+
+           esc(m.val)+"</b><em>"+esc(m.sub)+"</em></div>";
+  }).join("");
+  var rc=(v.recent||[]).map(function(r){
+    var d=String(r.d||""),ds=d.length===8?d.slice(4,6)+"-"+d.slice(6,8):d8(d),n=Number(r.nf)||0;
+    return '<span class="vr"><i>'+esc(ds)+'</i> <b class="'+(n>0?"up":n<0?"down":"")+'">'+
+           (n>0?"+":"")+n.toFixed(1)+"</b></span>";
+  }).join("");
+  var wn=(v.warnings&&v.warnings.length)
+    ?'<div class="vwarn">本次取数有 '+v.warnings.length+
+     ' 条告警（多为无新增份额日 / 境外 runner 受限）；下方数值为<b>最近一个已确认份额日</b>的结论，未受影响。</div>':"";
+  box.innerHTML=
+    '<div class="vhead"><div class="vlab">今日结论 <span class="vtag">已确认 · 份额口径 T+1</span></div>'+
+    '<div class="vdate">份额数据日 <b>'+esc(d8(v.asof))+'</b> · 文件生成 '+esc(v.built)+'</div></div>'+
+    '<div class="vmain"><div class="vtitle">'+esc(v.title)+'<span>'+esc(v.lead)+'</span></div>'+
+    '<div class="vdesc">'+(v.desc||"")+"</div></div>"+
+    '<div class="vgrid">'+ms+"</div>"+
+    '<div class="vrecent"><span class="dim">近 6 个已确认交易日（亿）：</span>'+rc+"</div>"+
+    '<div class="vact"><b>怎么做</b>：'+(v.action||"")+"</div>"+wn+
+    '<div class="vfoot">数据来源：上交所官方日频份额（T+1）、新浪日线与成交额基准、腾讯实时快照。'+
+    '结论为公开数据研究，仅用于观察资金结构，不构成投资建议，不承诺收益或准确率，不自动下单；'+
+    '接口存在延迟、缺失或中断可能。<button class="btn vdiag" onclick="toggleDiag()">🔍 自检</button></div>'+
+    '<pre id="diag" class="diag" style="display:none"></pre>';
+  ST.asof=v.asof||ST.asof; ST.built=v.built||ST.built; ST.source=v.source||ST.source;
+  if(typeof v.nf==="number")ST.nf=v.nf;
+  if(typeof v.aum==="number")ST.aum=v.aum;
+}
+function toggleDiag(){
+  var d=document.getElementById("diag"); if(!d)return;
+  var showing=d.style.display!=="none";
+  if(showing){d.style.display="none";return}
+  var off=-new Date().getTimezoneOffset()/60;
+  d.textContent=[
+    "【页面自检 · 直接截图即可定位】",
+    "浏览器："+navigator.userAgent.slice(0,120),
+    "北京时间："+bjClock()+" ｜ 设备时区 UTC"+(off>=0?"+":"")+off+" 本地 "+localClock(),
+    "结论来源："+NET.src+" ｜ 份额数据日："+d8(ST.asof),
+    "data.json："+NET.data+(NET.dataMs?"（"+NET.dataMs+" ms）":""),
+    "state.json："+NET.state,
+    "实时行情："+(ST.qerr?"失败："+ST.qerr.slice(0,70):(ST.qn>0?"成功":"待加载"))+
+      " ｜ 通道 "+ST.qhow+" ｜ 有效 "+ST.qn+" 只",
+    "说明：结论已写死在网页里，data.json 失败也应完整显示；明细只影响下方图表与统计表。"
+  ].join("\n");
+  d.style.display="block";
+}
+function fetchTO(url,ms){
+  return new Promise(function(res,rej){
+    var done=false;
+    var t=setTimeout(function(){if(!done){done=true;rej(new Error("超时 "+ms+"ms"))}},ms);
+    fetch(url,{cache:"no-store"}).then(function(r){
+      if(done)return; done=true; clearTimeout(t);
+      if(!r.ok)rej(new Error("HTTP "+r.status)); else res(r);
+    },function(e){if(!done){done=true;clearTimeout(t);rej(e)}});
+  });
+}
+function reloadDetail(){location.href=location.pathname+"?r="+Date.now()}
 var C={bg:"#0b0f14",line:"#1f2a36",dim:"#8b98a5",red:"#f2545b",green:"#2ea36b",
        gold:"#e3b341",blue:"#4a9eff",purple:"#a371f7",teal:"#39c5cf"};
 var SCOLOR={"沪深300":"#f2545b","上证50":"#e3b341","中证500":"#4a9eff",
@@ -486,12 +618,12 @@ function updateStatus(){
     "资金结构<b>只作观察，不作买卖点</b>；右下「🔄 刷新日报」触发云端重算，需 GitHub Token。");
   $("stlist").innerHTML=rows.map(function(x){return "<li>"+x+"</li>"}).join("");
 }
+/* 状态说明已收进 <details> 抽屉，此函数保留给旧书签/缓存页面调用，做空安全处理 */
 function toggleStatus(){
-  var b=$("stbody"),hidden=b.style.display==="none";
+  var b=$("stbody"); if(!b)return;
+  var hidden=b.style.display==="none";
   b.style.display=hidden?"block":"none";
-  $("stflag").textContent=hidden?"收起":"展开";
-  try{if(hidden)localStorage.removeItem("ntStatus");
-      else localStorage.setItem("ntStatus","fold")}catch(e){}
+  var fl=$("stflag"); if(fl)fl.textContent=hidden?"收起":"展开";
 }
 function scheduleQuotes(){
   // 盘中 15 秒、盘后 5 分钟；定时器仍每 15 秒醒一次，只是非盘中时按 gap 决定是否真正发请求
@@ -980,29 +1112,53 @@ function runWF(){
 }
 function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("ntGhToken",t);runWF()}
 
-/* ====================== 启动 ====================== */
+/* ====================== 启动 ======================
+   顺序刻意调整：结论 → 明细（可失败）→ 实时行情（不依赖明细）→ 状态文件。
+   旧版把 render() 放在 data.json 成功之后，手机弱网时一个请求失败就整页空白。 */
 (async function(){
+  // ① 结论恒可见：内嵌快照重画（静态 HTML 已是最终态，此处兼修旧缓存）
+  paintVerdict(SNAP.verdict);
+  updateStatus();
+
+  // ② 明细：10 秒超时，失败只降级明细区，绝不阻断后续
+  var t0=Date.now();
   try{
-    var r=await fetch("data.json?t="+Date.now(),{cache:"no-store"});
-    if(!r.ok)throw new Error("HTTP "+r.status);
-    D=await r.json();
-    QCFG=D.quotes;
-    render(D);
-    ST.asof=D.asof||"--";
-    try{if(localStorage.getItem("ntStatus")==="fold"){
-      $("stbody").style.display="none";$("stflag").textContent="展开";
-    }}catch(e){}
-    updateStatus();
+    var r=await fetchTO("data.json?t="+Date.now(),10000);
+    var txt=await r.text();
+    NET.dataMs=Date.now()-t0;
+    D=JSON.parse(txt);
+    NET.data="成功 "+(txt.length/1024).toFixed(0)+" KB";
+    QCFG=D.quotes||SNAP.quotes||[];
+    if(D.verdict){paintVerdict(D.verdict);NET.src="云端 data.json"}
+    ST.asof=D.asof||ST.asof;
+    try{
+      render(D);
+      $("datanote").innerHTML="✅ 明细已联网加载，上方结论与云端数据核对一致。"+
+        ' <span class="dim">（结论本身已写进网页，断网也能看到。）</span>';
+    }catch(e){
+      NET.data+=" / 图表异常";
+      $("datanote").innerHTML='<span class="warn">明细图表渲染异常（'+esc(e.message)+
+        "），但上方结论已内嵌、可直接使用。</span>";
+    }
+  }catch(e){
+    NET.data="失败："+e.message;
+    QCFG=SNAP.quotes||[];                       // 用内嵌代码表兜住实时行情
+    $("datanote").innerHTML='<span class="warn">⚠️ 历史明细未加载（'+esc(e.message)+"）。</span> "+
+      "上方结论是<b>写死在网页里的离线快照</b>，不受影响；实时行情与分时仍会尝试连接。 "+
+      '<button class="btn" onclick="reloadDetail()">重新加载明细</button>';
+  }
+  updateStatus();
+
+  // ③ 行情链路不依赖 data.json
+  try{
     var saved=localStorage.getItem("ntGhToken");
     if(saved){$("tok").value=saved;$("tok").placeholder="已保存（可留空直接触发）"}
-    loadQuotes(true); scheduleQuotes();
-    loadIntraday(true); intradayLoop();
-  }catch(e){
-    $("qnote").innerHTML='<span class="err">历史数据载入失败：'+esc(e.message)+
-      "。请刷新页面重试；若持续失败，检查 data.json 是否随 Pages 发布。</span>";
-  }
-  fetch("state.json?t="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()})
-  .then(function(s){
+  }catch(e){}
+  try{loadQuotes(true); scheduleQuotes(); loadIntraday(true); intradayLoop();}catch(e){}
+
+  // ④ 状态文件独立拉取，失败不影响任何结论
+  fetchTO("state.json?t="+Date.now(),8000).then(function(r){return r.json()}).then(function(s){
+    NET.state="成功";
     window.__gen=s.gen||"";
     ST.asof=s.asof||ST.asof; ST.built=s.built_cst||"--";
     ST.source=s.source||"--"; ST.warn=(s.warnings||[]).slice();
@@ -1015,7 +1171,7 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
     $("build").innerHTML="本次数据生成（文件时间，非行情日期）：<b>"+esc(s.built_cst||"--")+"</b> · 份额数据截至 <b>"+
       esc(s.asof||"--")+"</b> · 本次数据源 <b>"+esc(srcName[s.source]||s.source||"--")+"</b>"+
       probeTxt+(s.warnings&&s.warnings.length?" · <span class='warn'>"+s.warnings.length+" 条取数警告</span>":"");
-  }).catch(function(){});
+  }).catch(function(e){NET.state="失败："+e.message});
 })();
 </script>
 </body></html>

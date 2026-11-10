@@ -614,25 +614,45 @@ def main():
     from verdict import make_verdict, embed_verdict
     payload["verdict"] = make_verdict(payload, state)
 
-    tmp = os.path.join(DOCS, "data.json.tmp")
-    json.dump(payload, open(tmp, "w", encoding="utf-8"), ensure_ascii=False,
-              separators=(",", ":"))
-    os.replace(tmp, os.path.join(DOCS, "data.json"))
+    # 首屏瘦身（2026-11-10 手机端明细空白复盘）：
+    # rows 有 2877 天、约 304 KB，占整个 data.json 的 89%。手机弱网下这一个
+    # 请求超时，KPI 与所有明细表格就一起停在「载入中…」。拆成两份：
+    #   data.json   = 去掉 rows 的轻版（约 39 KB），首屏同步请求
+    #   history.json= 仅 rows（约 304 KB），异步加载，只用于两张历史曲线
+    # 轻版同时内嵌进 index.html，做到「零请求也能看到全部具体数据」。
+    lite = {k: v for k, v in payload.items() if k != "rows"}
+    hist = {"asof": payload.get("asof"), "rows": payload["rows"]}
+
+    def _dump(obj, name):
+        tmp = os.path.join(DOCS, name + ".tmp")
+        json.dump(obj, open(tmp, "w", encoding="utf-8"), ensure_ascii=False,
+                  separators=(",", ":"))
+        os.replace(tmp, os.path.join(DOCS, name))
+
+    _dump(lite, "data.json")
+    _dump(hist, "history.json")
     json.dump(state, open(os.path.join(DOCS, "state.json"), "w", encoding="utf-8"),
               ensure_ascii=False, indent=2)
 
-    # CI 里刻意跳过：workflow 当前未把 index.html 纳入 git add，
-    # 若在此处改动会产生未提交文件，可能阻塞后续的 pull --rebase / push。
-    # 在线结论由 data.json.verdict 每日提交，离线快照由浏览器 localStorage 保鲜。
+    # 结论与轻版明细一律内嵌（CI 也做）。workflow 的静态 git add 列表不含
+    # index.html / history.json，故在脚本里显式 git add 兜住；push.paths 已
+    # 排除 docs/，重复提交不会触发死循环。本地非 git 环境静默跳过即可。
+    try:
+        changed = embed_verdict(payload["verdict"], os.path.join(DOCS, "index.html"),
+                                payload.get("quotes", []), lite)
+        print("  结论+明细内嵌：%s（轻版 %.0f KB / 曲线 %.0f KB）"
+              % ("已更新 index.html" if changed else "内容无变化",
+                 os.path.getsize(os.path.join(DOCS, "data.json")) / 1024.0,
+                 os.path.getsize(os.path.join(DOCS, "history.json")) / 1024.0), flush=True)
+    except Exception as e:
+        warn("结论内嵌失败（不影响数据）：%s" % e)
     if os.environ.get("GITHUB_ACTIONS"):
-        print("  结论内嵌：CI 环境跳过（在线结论走 data.json.verdict）", flush=True)
-    else:
         try:
-            changed = embed_verdict(payload["verdict"], os.path.join(DOCS, "index.html"),
-                                    payload.get("quotes", []))
-            print("  结论内嵌：%s" % ("已更新 index.html" if changed else "内容无变化"), flush=True)
+            import subprocess
+            subprocess.run(["git", "add", "docs/index.html", "docs/history.json",
+                            "docs/data.json", "docs/state.json"], check=False)
         except Exception as e:
-            warn("结论内嵌失败（不影响数据）：%s" % e)
+            warn("git add 兜底失败（不影响数据）：%s" % e)
 
     print("\n完成：%s | 净流入 %+.1f 亿 | 样本 %d 天 | 新增份额 %d 天 | 警告 %d 条"
           % (last["d"], last["nf"], len(rows), got, len(WARNINGS)), flush=True)

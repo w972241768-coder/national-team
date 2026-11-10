@@ -392,6 +392,7 @@ function toggleDiag(){
     "state.json："+NET.state,
     "实时行情："+(ST.qerr?"失败："+ST.qerr.slice(0,70):(ST.qn>0?"成功":"待加载"))+
       " ｜ 通道 "+ST.qhow+" ｜ 有效 "+ST.qn+" 只",
+    "离线快照："+(function(){try{return localStorage.getItem("ntVerdict")?"浏览器已缓存最新结论":"页面内嵌"}catch(e){return "页面内嵌"}})(),
     "说明：结论已写死在网页里，data.json 失败也应完整显示；明细只影响下方图表与统计表。"
   ].join("\n");
   d.style.display="block";
@@ -1116,8 +1117,15 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
    顺序刻意调整：结论 → 明细（可失败）→ 实时行情（不依赖明细）→ 状态文件。
    旧版把 render() 放在 data.json 成功之后，手机弱网时一个请求失败就整页空白。 */
 (async function(){
-  // ① 结论恒可见：内嵌快照重画（静态 HTML 已是最终态，此处兼修旧缓存）
-  paintVerdict(SNAP.verdict);
+  // ① 结论恒可见：优先用浏览器缓存的最新结论，其次用页面内嵌快照。
+  //    CI 每日会更新 data.json 里的 verdict；缓存下来后，即使下次断网、
+  //    页面内嵌快照未随 CI 重写，离线看到的仍是最近一次联网的结论。
+  var v0=SNAP.verdict||{};
+  try{
+    var cv=JSON.parse(localStorage.getItem("ntVerdict")||"null");
+    if(cv&&cv.title&&String(cv.asof||"")>=String(v0.asof||"")){v0=cv;NET.src="浏览器缓存快照"}
+  }catch(e){}
+  paintVerdict(v0);
   updateStatus();
 
   // ② 明细：10 秒超时，失败只降级明细区，绝不阻断后续
@@ -1129,7 +1137,10 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
     D=JSON.parse(txt);
     NET.data="成功 "+(txt.length/1024).toFixed(0)+" KB";
     QCFG=D.quotes||SNAP.quotes||[];
-    if(D.verdict){paintVerdict(D.verdict);NET.src="云端 data.json"}
+    if(D.verdict){
+      paintVerdict(D.verdict);NET.src="云端 data.json";
+      try{localStorage.setItem("ntVerdict",JSON.stringify(D.verdict))}catch(e){}
+    }
     ST.asof=D.asof||ST.asof;
     try{
       render(D);

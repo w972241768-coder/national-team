@@ -15,10 +15,18 @@
 - **「怎么做」**：条件式指引（若…则…否则…），明确写出资金结构只作观察、不作买卖点；
 - 卡片尾部带来源、时效与合规披露，右下「🔍 自检」输出浏览器 / 时区 / 三个请求的连通状态，截图即可定位问题。
 
-> **关键设计**：结论卡的完整 HTML 与 26 只行情代码表由 `scripts/verdict.py` 在每次 CI 重算时
+> **关键设计**：结论卡的完整 HTML 与 26 只行情代码表由 `scripts/verdict.py`
 > **直接写进 `docs/index.html`**，不依赖 `data.json`（343 KB）或任何外部请求。
 > 实测在「拦截 data.json」与「完全禁用 JavaScript」两种极端条件下，四个数字仍完整可见。
+> 在线时 `data.json` 的 `verdict` 字段会覆盖成云端最新值，并缓存进浏览器 `localStorage`；
+> 因此即使页面内嵌快照未随 CI 重写，断网看到的仍是**最近一次联网的结论**。
 > 冗长的口径说明与状态条已收进默认折叠的「⚙️ 数据说明」抽屉。
+>
+> ⚠️ **已知运维限制**：CI 工作流 `.github/workflows/update.yml` 的 `git add` 尚未加入
+> `docs/index.html`（当前 Token 缺 `workflow` 权限，GitHub 对该路径的写入返回 404）。
+> 这**不影响在线结论**——`data.json` 本就在提交列表里，其 `verdict` 字段每日自动更新。
+> 若要让离线快照也随 CI 刷新，在 GitHub 网页端把该文件提交命令里的 `git add` 补上
+> `docs/index.html` 即可（脚本与工作流改动已就绪，只差这一处权限）。
 
 ## 这套指标能做什么、不能做什么
 
@@ -171,8 +179,9 @@ scripts/update.py      数据更新管线（GitHub Actions 调用）
 
 **修复（结论前置 + 离线兜底）**：
 
-1. `scripts/verdict.py` 在每次 CI 重算时，把完整结论卡 HTML 与 26 只行情代码表
-   （共约 6 KB）**写死进 `docs/index.html`**；`payload["verdict"]` 同步进 `data.json` 供联网时覆盖。
+1. `scripts/verdict.py` 在数据重算时，把完整结论卡 HTML 与 26 只行情代码表
+   （共约 6 KB）**写死进 `docs/index.html`**；`payload["verdict"]` 同步进 `data.json`
+   （CI 每日提交，在线结论自动更新）并缓存进浏览器 `localStorage`（离线快照保鲜）。
 2. 启动顺序改为「结论 → 明细（10 秒超时，可失败）→ 实时行情（不依赖明细）→ 状态文件」；
    明细失败时只降级明细区并给「重新加载明细」按钮，结论与实时行情照常。
 3. `data.json` 失败时用内嵌代码表跑腾讯行情 / 分时，`fetch` 与 `<script>` 双通道继续竞速。

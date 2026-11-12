@@ -1,0 +1,229 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>净流入与上证指数关系 · 历史研究看板</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0b0f14;--card:#131a22;--card2:#18212c;--line:#26313e;--txt:#e6edf3;--dim:#8b98a5;
+--red:#f2545b;--green:#2ea36b;--gold:#e3b341;--blue:#4a9eff}
+html{overflow-x:hidden;max-width:100%;scroll-behavior:smooth}
+body{background:var(--bg);color:var(--txt);font:15px/1.75 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+ padding:22px 16px 90px;overflow-x:hidden;max-width:100%}
+.wrap{max-width:1120px;width:100%;margin:0 auto;overflow-x:hidden}
+h1{font-size:23px;font-weight:700;letter-spacing:.3px}
+.sub{color:var(--dim);font-size:12.5px;margin-top:7px;line-height:1.8}
+nav{display:flex;flex-wrap:wrap;gap:7px;margin:14px 0 6px;font-size:12px}
+nav a{color:var(--blue);background:#182633;border:1px solid #2b3d50;padding:4px 11px;border-radius:14px;text-decoration:none;white-space:nowrap}
+h2{font-size:17px;font-weight:650;margin:28px 0 8px;color:var(--txt);scroll-margin-top:12px}
+h2 small{color:var(--dim);font-size:11px;font-weight:400;letter-spacing:1.2px;margin-left:9px}
+h3{font-size:13.5px;font-weight:600;margin:16px 0 7px;color:var(--txt)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:14px 16px;margin:12px 0}
+.card.top{border-top:3px solid var(--green)}
+.note{color:var(--dim);font-size:12px;line-height:1.85;margin:7px 0 11px}
+.note b{color:var(--txt)}
+.headline{font-size:25px;font-weight:700;color:var(--green);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:6px 0 10px}
+.headline span{font-size:12px;font-weight:400;color:var(--dim)}
+.tone{font-size:11px;font-weight:600;color:#08120e;background:var(--green);border-radius:4px;padding:3px 10px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:13px 0}
+.m{background:var(--card2);border:1px solid var(--line);border-radius:7px;padding:11px 13px}
+.m span{display:block;font-size:11px;color:var(--dim)}
+.m b{display:block;font-size:21px;font-weight:700;margin:3px 0 1px;font-variant-numeric:tabular-nums}
+.m em{font-style:normal;font-size:10.5px;color:var(--dim);display:block;line-height:1.55}
+table{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+th{color:var(--dim);font-weight:500;text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:6px 8px;border-bottom:1px solid #1e2732;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+.n{text-align:right}
+.up{color:var(--red)}.down{color:var(--green)}.dim{color:var(--dim)}
+.gold{color:var(--gold)}.blue{color:var(--blue)}
+.scroll{overflow-x:auto;max-width:100%;width:100%;-webkit-overflow-scrolling:touch}
+svg{width:100%;height:auto;display:block}
+.chartcard{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:12px 14px;margin:12px 0}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--dim);margin:2px 0 8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.act{background:#2a2410;border-left:3px solid var(--gold);padding:11px 14px;border-radius:0 7px 7px 0;
+ font-size:12.5px;line-height:1.95;margin:12px 0;color:var(--txt)}
+.act b{color:var(--gold)}
+.alert{background:#2a1719;border:1px solid #5a2b30;border-radius:8px;padding:11px 14px;margin:12px 0;font-size:12.5px;line-height:1.9}
+.alert b{color:var(--red)}
+.okbox{background:#122419;border:1px solid #26503a;border-radius:8px;padding:11px 14px;margin:12px 0;font-size:12.5px;line-height:1.9}
+.okbox b{color:var(--green)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+footer{margin-top:28px;padding-top:13px;border-top:1px solid var(--line);color:var(--dim);font-size:11.5px;line-height:1.9}
+.tag{display:inline-block;font-size:10.5px;padding:1px 7px;border-radius:10px;border:1px solid var(--line);color:var(--dim);margin-left:6px}
+@media(max-width:820px){
+ body{padding:14px 10px 90px}.wrap{max-width:100%;overflow-x:hidden}
+ h1{font-size:19px}.headline{font-size:21px}
+ .grid{grid-template-columns:repeat(2,1fr);gap:8px}.m b{font-size:18px}
+ .two{grid-template-columns:1fr}
+ table{font-size:11px}th,td{padding:5px 5px}
+ .card,.chartcard{padding:11px 10px}
+}
+</style></head><body><div class="wrap">
+<h1>净流入 / 净流出 与 上证指数 · 历史关系研究看板</h1>
+<div class="sub">研究日期 2026-11-12 · 样本 2015-01-06 ~ 2026-11-09，2877 个交易日 / 11.84 年 ·
+数据源：上交所 ETF 日频份额（T+1）+ 新浪日线上证综指 ·
+<a href="index.html" style="color:#4a9eff">返回国家队持仓看板</a></div>
+<nav>
+<a href="#v">① 结论</a><a href="#q0">② 数据边界</a><a href="#q1">③ 同期关系</a>
+<a href="#q2">④ 谁领先谁</a><a href="#q3">⑤ 波动与申赎</a><a href="#q4">⑥ 分档收益</a>
+<a href="#q5">⑦ 极值事件</a><a href="#q6">⑧ 操作指引</a>
+</nav>
+
+<div class="card top" id="v">
+<div class="headline">资金流不是上证指数的领先指标 <span class="tone">偏空（对「用资金择时」这一用途）</span></div>
+<div class="note">结论针对的是<b>「拿净流入/净流出预测指数、据此买卖」这个用途</b>，不是对当下行情方向的判断。
+全样本检验显示：同期相关几乎为零；唯一稳定的关系是<b>指数领先、资金滞后 1 日</b>；
+看似明显的分档收益差在簇化去重后全部翻转或消失。<b>资金结构只能作观察，不作买卖点。</b></div>
+<div class="grid">
+<div class="m"><span>同期相关 · 绝对金额</span><b>−0.021</b><em>Pearson，p=0.27 不显著</em></div>
+<div class="m"><span>同期相关 · 强度口径</span><b>−0.076</b><em>剔除篮子规模膨胀后</em></div>
+<div class="m"><span>指数涨跌 → 明日资金</span><b>−0.226</b><em>Spearman，12 年中 11 年同号</em></div>
+<div class="m"><span>五档置换检验 T+60</span><b>全不显著</b><em>p = 0.28 ~ 0.87</em></div>
+</div>
+<div class="okbox"><b>一句话</b>：钱是跟着行情走、且慢一天；不是行情跟着钱走。
+这与本项目此前「滚动 95 分位托底被 2873 天样本证伪」、
+以及《国家队大幅买入与牛市》事件研究「大幅买入 ≠ 牛市发令枪」三个独立课题结论一致。</div>
+</div>
+
+<h2 id="q0">一 · 数据边界：为什么不是 20 年 <small>DATA COVERAGE</small></h2>
+<div class="card">
+<div class="alert"><b>你要的「近 20 年」在本口径下无法覆盖。</b>上交所公开日频份额接口最早
+<b>2015-01-06</b>；而宽基 ETF 的规模化申赎、以及所谓「国家队」通过 ETF 入市，都是 2015 年之后才有的现象。
+2006~2014 年不存在同口径的日频净流入数据，任何「20 年」数字都只能是外推或换口径拼接，我不做。</div>
+<div class="note">本看板用<b>可得最长全样本 2015-01-06 ~ 2026-11-09，共 2877 个交易日 / 11.84 年</b>。
+篮子上证规模从 1073.5 亿膨胀到 8236.3 亿，故同时给出「绝对金额」与「强度 = 净流入 / 篮子规模」两套口径，
+避免把规模增长误读成资金意愿变强。<br>
+<b>时序陷阱已处理</b>：份额 T+1 才公布，所以「同日」相关只是统计关联，不可交易；
+所有后续收益一律从 <b>T+1 收盘</b>起算（对照「信号当日收盘起算」的前视口径），
+分档按 20 交易日间隔簇化去重，显著性用事件日整体循环平移置换检验（4000 次）保留簇结构与市场漂移。
+上证指数两套独立来源逐日相关系数 0.9999999998；T+20 收益用向量与循环两条路径复算，最大差 0。</div>
+<div class="scroll"><table><thead><tr><th>年度样本量（sanity check）</th>
+<th class='n'>2015</th><th class='n'>2016</th><th class='n'>2017</th><th class='n'>2018</th><th class='n'>2019</th><th class='n'>2020</th><th class='n'>2021</th><th class='n'>2022</th><th class='n'>2023</th><th class='n'>2024</th><th class='n'>2025</th><th class='n'>2026</th></tr></thead><tbody><tr><td>交易日数</td><td class='n'>243</td><td class='n'>244</td><td class='n'>244</td><td class='n'>243</td><td class='n'>244</td><td class='n'>243</td><td class='n'>243</td><td class='n'>242</td><td class='n'>242</td><td class='n'>242</td><td class='n'>243</td><td class='n'>204</td></tr></tbody></table></div>
+</div>
+
+<h2 id="q1">二 · 同期关系：几乎为零，且分区间翻号 <small>CONTEMPORANEOUS</small></h2>
+<div class="card">
+<div class="scroll"><table><thead><tr><th>口径</th><th class="n">Pearson</th><th class="n">p</th>
+<th class="n">Spearman</th><th class="n">p</th><th class="n">样本</th></tr></thead><tbody>
+<tr><td>绝对金额（亿元）</td><td class='n dim'>-0.0206</td><td class='n'>0.27</td><td class='n down'>-0.0467</td><td class='n'>0.0122</td><td class='n'>2876</td></tr>
+<tr><td>强度（净流入 / 篮子规模）</td><td class='n down'>-0.0757</td><td class='n'>0.00000</td><td class='n down'>-0.0524</td><td class='n'>0.0049</td><td class='n'>2876</td></tr>
+</tbody></table></div>
+<div class="note">绝对金额 Pearson 仅 −0.021、p=0.27（不显著）；Spearman −0.047 虽 p=0.012，但幅度极小、
+经济意义可忽略。强度口径 Pearson −0.076（p&lt;0.001）看似显著，解释力仍不足 0.6%。
+<b>分区间方向翻号</b>：2015-2018 为 +0.034、2019-2022 为 −0.139、2023-2026 为 −0.027 ⇒ 不是稳定规律。</div>
+</div>
+<div class="chartcard"><h3>逐年同期 Spearman（红=正 / 绿=负）</h3>
+<div class="legend"><span><i style="background:#f2545b"></i>正相关</span><span><i style="background:#2ea36b"></i>负相关</span></div>
+<svg viewBox="0 0 1000 175" preserveAspectRatio="none"><line x1="46" y1="135.0" x2="988" y2="135.0" stroke="#26313e" stroke-width=".6"/><text x="41" y="138.0" fill="#8b98a5" font-size="10" text-anchor="end">-0.3</text><line x1="46" y1="105.2" x2="988" y2="105.2" stroke="#26313e" stroke-width=".6"/><text x="41" y="108.2" fill="#8b98a5" font-size="10" text-anchor="end">-0.2</text><line x1="46" y1="75.5" x2="988" y2="75.5" stroke="#26313e" stroke-width="1.1"/><line x1="46" y1="45.8" x2="988" y2="45.8" stroke="#26313e" stroke-width=".6"/><text x="41" y="48.8" fill="#8b98a5" font-size="10" text-anchor="end">+0.2</text><line x1="46" y1="16.0" x2="988" y2="16.0" stroke="#26313e" stroke-width=".6"/><text x="41" y="19.0" fill="#8b98a5" font-size="10" text-anchor="end">+0.3</text><rect x="62.5" y="74.1" width="45.5" height="1.4" fill="#f2545b" opacity=".82"><title>2015 年 · Spearman +0.008 · n=242</title></rect><text x="85.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2015</text><text x="85.2" y="69.1" fill="#f2545b" font-size="10" text-anchor="middle">+0.01</text><rect x="141.0" y="59.0" width="45.5" height="16.5" fill="#f2545b" opacity=".82"><title>2016 年 · Spearman +0.097 · n=244</title></rect><text x="163.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2016</text><text x="163.8" y="54.0" fill="#f2545b" font-size="10" text-anchor="middle">+0.10</text><rect x="219.5" y="75.5" width="45.5" height="2.9" fill="#2ea36b" opacity=".82"><title>2017 年 · Spearman -0.017 · n=244</title></rect><text x="242.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2017</text><text x="242.2" y="91.4" fill="#2ea36b" font-size="10" text-anchor="middle">-0.02</text><rect x="298.0" y="67.8" width="45.5" height="7.7" fill="#f2545b" opacity=".82"><title>2018 年 · Spearman +0.045 · n=243</title></rect><text x="320.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2018</text><text x="320.8" y="62.8" fill="#f2545b" font-size="10" text-anchor="middle">+0.05</text><rect x="376.5" y="75.5" width="45.5" height="26.1" fill="#2ea36b" opacity=".82"><title>2019 年 · Spearman -0.153 · n=244</title></rect><text x="399.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2019</text><text x="399.2" y="114.6" fill="#2ea36b" font-size="10" text-anchor="middle">-0.15</text><rect x="455.0" y="71.1" width="45.5" height="4.4" fill="#f2545b" opacity=".82"><title>2020 年 · Spearman +0.026 · n=243</title></rect><text x="477.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2020</text><text x="477.8" y="66.1" fill="#f2545b" font-size="10" text-anchor="middle">+0.03</text><rect x="533.5" y="75.5" width="45.5" height="47.1" fill="#2ea36b" opacity=".82"><title>2021 年 · Spearman -0.277 · n=243</title></rect><text x="556.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2021</text><text x="556.2" y="135.6" fill="#2ea36b" font-size="10" text-anchor="middle">-0.28</text><rect x="612.0" y="75.5" width="45.5" height="23.3" fill="#2ea36b" opacity=".82"><title>2022 年 · Spearman -0.137 · n=242</title></rect><text x="634.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2022</text><text x="634.8" y="111.8" fill="#2ea36b" font-size="10" text-anchor="middle">-0.14</text><rect x="690.5" y="74.1" width="45.5" height="1.4" fill="#f2545b" opacity=".82"><title>2023 年 · Spearman +0.008 · n=242</title></rect><text x="713.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2023</text><text x="713.2" y="69.1" fill="#f2545b" font-size="10" text-anchor="middle">+0.01</text><rect x="769.0" y="63.2" width="45.5" height="12.3" fill="#f2545b" opacity=".82"><title>2024 年 · Spearman +0.072 · n=242</title></rect><text x="791.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2024</text><text x="791.8" y="58.2" fill="#f2545b" font-size="10" text-anchor="middle">+0.07</text><rect x="847.5" y="56.8" width="45.5" height="18.7" fill="#f2545b" opacity=".82"><title>2025 年 · Spearman +0.110 · n=243</title></rect><text x="870.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2025</text><text x="870.2" y="51.8" fill="#f2545b" font-size="10" text-anchor="middle">+0.11</text><rect x="926.0" y="75.5" width="45.5" height="33.8" fill="#2ea36b" opacity=".82"><title>2026 年 · Spearman -0.199 · n=204</title></rect><text x="948.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2026</text><text x="948.8" y="122.3" fill="#2ea36b" font-size="10" text-anchor="middle">-0.20</text></svg>
+<div class="note">12 年里正负各半、幅度在 −0.28 ~ +0.11 之间摆动，没有可依赖的方向。</div></div>
+<div class="card"><h3>分区间稳定性</h3><div class="scroll"><table>
+<thead><tr><th>区间</th><th class="n">交易日</th><th class="n">同期 Spearman</th><th class="n">p</th>
+<th class="n">指数→次日资金</th><th>备注</th></tr></thead><tbody><tr><td>2015-2018</td><td class='n'>973</td><td class="n up">+0.034</td><td class='n'>0.2861</td><td class="n down">-0.245</td><td class='n dim'>方向翻转</td></tr><tr><td>2019-2022</td><td class='n'>972</td><td class="n down">-0.139</td><td class='n'>0.0000</td><td class="n down">-0.210</td><td class='n dim'></td></tr><tr><td>2023-2026</td><td class='n'>931</td><td class="n down">-0.027</td><td class='n'>0.4115</td><td class="n down">-0.138</td><td class='n dim'></td></tr></tbody></table></div>
+<div class="note">同期一列翻号；<b>「指数今日涨跌 → 明日净流入」三段全为负</b>，是全样本里唯一方向稳定的关系。</div></div>
+
+<h2 id="q2">三 · 谁领先谁：指数在前，资金在后一天 <small>LEAD / LAG</small></h2>
+<div class="chartcard"><h3>资金与上证涨跌的领先滞后相关（横轴 k）</h3>
+<div class="note">k &gt; 0 = 资金领先 k 日；k &lt; 0 = 资金滞后（即指数领先）。
+除 k=−1 的 −0.110 外，其余全部贴着 0 —— <b>资金没有领先信息</b>。</div>
+<svg viewBox="0 0 1000 195" preserveAspectRatio="none"><line x1="46" y1="155.0" x2="988" y2="155.0" stroke="#26313e" stroke-width=".6"/><text x="41" y="158.0" fill="#8b98a5" font-size="10" text-anchor="end">-0.13</text><line x1="46" y1="120.2" x2="988" y2="120.2" stroke="#26313e" stroke-width=".6"/><text x="41" y="123.2" fill="#8b98a5" font-size="10" text-anchor="end">-0.06</text><line x1="46" y1="85.5" x2="988" y2="85.5" stroke="#26313e" stroke-width="1.1"/><line x1="46" y1="50.8" x2="988" y2="50.8" stroke="#26313e" stroke-width=".6"/><text x="41" y="53.8" fill="#8b98a5" font-size="10" text-anchor="end">+0.06</text><line x1="46" y1="16.0" x2="988" y2="16.0" stroke="#26313e" stroke-width=".6"/><text x="41" y="19.0" fill="#8b98a5" font-size="10" text-anchor="end">+0.13</text><polyline points="46.0,100.2 108.8,91.6 171.6,98.9 234.4,88.2 297.2,145.9 360.0,96.8 422.8,68.4 485.6,87.7 548.4,76.4 611.2,91.3 674.0,72.2 736.8,105.7 799.6,97.0 862.4,69.2 925.2,76.4 988.0,72.3" fill="none" stroke="#4a9eff" stroke-width="2"/><circle cx="46.0" cy="100.2" r="3" fill="#4a9eff"/><text x="46.0" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">-5</text><circle cx="108.8" cy="91.6" r="3" fill="#4a9eff"/><text x="108.8" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">-4</text><circle cx="171.6" cy="98.9" r="3" fill="#4a9eff"/><text x="171.6" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">-3</text><circle cx="234.4" cy="88.2" r="3" fill="#4a9eff"/><text x="234.4" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">-2</text><circle cx="297.2" cy="145.9" r="3" fill="#e3b341"/><text x="297.2" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">-1</text><circle cx="360.0" cy="96.8" r="3" fill="#4a9eff"/><text x="360.0" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">0</text><circle cx="422.8" cy="68.4" r="3" fill="#4a9eff"/><text x="422.8" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">1</text><circle cx="485.6" cy="87.7" r="3" fill="#4a9eff"/><text x="485.6" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">2</text><circle cx="548.4" cy="76.4" r="3" fill="#4a9eff"/><text x="548.4" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">3</text><circle cx="611.2" cy="91.3" r="3" fill="#4a9eff"/><text x="611.2" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">4</text><circle cx="674.0" cy="72.2" r="3" fill="#4a9eff"/><text x="674.0" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">5</text><circle cx="736.8" cy="105.7" r="3" fill="#4a9eff"/><text x="736.8" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">6</text><circle cx="799.6" cy="97.0" r="3" fill="#4a9eff"/><text x="799.6" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">7</text><circle cx="862.4" cy="69.2" r="3" fill="#4a9eff"/><text x="862.4" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">8</text><circle cx="925.2" cy="76.4" r="3" fill="#4a9eff"/><text x="925.2" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">9</text><circle cx="988.0" cy="72.3" r="3" fill="#4a9eff"/><text x="988.0" y="183" fill="#8b98a5" font-size="10" text-anchor="middle">10</text></svg></div>
+<div class="two">
+<div class="card"><h3>领先滞后明细</h3><div class="scroll"><table>
+<thead><tr><th>关系</th><th class="n">k</th><th class="n">Pearson</th><th class="n">n</th><th>备注</th></tr></thead>
+<tbody><tr><td>资金滞后 5 日（指数领先）</td><td class='n'>-5</td><td class="n down">-0.0266</td><td class='n'>2871</td><td class='dim'></td></tr><tr><td>资金滞后 4 日（指数领先）</td><td class='n'>-4</td><td class="n down">-0.0111</td><td class='n'>2872</td><td class='dim'></td></tr><tr><td>资金滞后 3 日（指数领先）</td><td class='n'>-3</td><td class="n down">-0.0244</td><td class='n'>2873</td><td class='dim'></td></tr><tr><td>资金滞后 2 日（指数领先）</td><td class='n'>-2</td><td class="n down">-0.0049</td><td class='n'>2874</td><td class='dim'></td></tr><tr><td>资金滞后 1 日（指数领先）</td><td class='n'>-1</td><td class="n down">-0.1097</td><td class='n'>2875</td><td class='dim'>全样本最强（但方向是滞后）</td></tr><tr><td>同日</td><td class='n'>+0</td><td class="n down">-0.0206</td><td class='n'>2876</td><td class='dim'>同日</td></tr><tr><td>资金领先 1 日</td><td class='n'>+1</td><td class="n up">+0.0311</td><td class='n'>2875</td><td class='dim'></td></tr><tr><td>资金领先 2 日</td><td class='n'>+2</td><td class="n down">-0.0040</td><td class='n'>2874</td><td class='dim'></td></tr><tr><td>资金领先 3 日</td><td class='n'>+3</td><td class="n up">+0.0165</td><td class='n'>2873</td><td class='dim'></td></tr><tr><td>资金领先 4 日</td><td class='n'>+4</td><td class="n down">-0.0105</td><td class='n'>2872</td><td class='dim'></td></tr><tr><td>资金领先 5 日</td><td class='n'>+5</td><td class="n up">+0.0242</td><td class='n'>2871</td><td class='dim'></td></tr><tr><td>资金领先 6 日</td><td class='n'>+6</td><td class="n down">-0.0366</td><td class='n'>2870</td><td class='dim'></td></tr><tr><td>资金领先 7 日</td><td class='n'>+7</td><td class="n down">-0.0209</td><td class='n'>2869</td><td class='dim'></td></tr><tr><td>资金领先 8 日</td><td class='n'>+8</td><td class="n up">+0.0296</td><td class='n'>2868</td><td class='dim'></td></tr><tr><td>资金领先 9 日</td><td class='n'>+9</td><td class="n up">+0.0166</td><td class='n'>2867</td><td class='dim'></td></tr><tr><td>资金领先 10 日</td><td class='n'>+10</td><td class="n up">+0.0239</td><td class='n'>2866</td><td class='dim'></td></tr></tbody></table></div></div>
+<div class="card"><h3>反向条件：指数[t] → 资金[t+k]</h3><div class="scroll"><table>
+<thead><tr><th class="n">k</th><th class="n">Pearson</th><th class="n">Spearman</th><th class="n">n</th></tr></thead>
+<tbody><tr><td class='n'>+1</td><td class="n down">-0.1097</td><td class='n'>-0.2263</td><td class='n'>2875</td></tr><tr><td class='n'>+2</td><td class="n down">-0.0049</td><td class='n'>-0.0260</td><td class='n'>2874</td></tr><tr><td class='n'>+3</td><td class="n down">-0.0244</td><td class='n'>-0.0680</td><td class='n'>2873</td></tr><tr><td class='n'>+5</td><td class="n down">-0.0266</td><td class='n'>-0.0425</td><td class='n'>2871</td></tr></tbody></table></div>
+<div class="note">只有 k=1 显著不为 0（Pearson −0.110 / Spearman −0.226），k≥2 迅速归零。
+<b>这是申赎确认机制的机械时滞 + 逆势申购行为，不是可交易信号</b>。</div></div>
+</div>
+<div class="chartcard"><h3>「指数今日涨跌 → 明日净流入」逐年 Pearson</h3>
+<svg viewBox="0 0 1000 175" preserveAspectRatio="none"><line x1="46" y1="135.0" x2="988" y2="135.0" stroke="#26313e" stroke-width=".6"/><text x="41" y="138.0" fill="#8b98a5" font-size="10" text-anchor="end">-0.7</text><line x1="46" y1="105.2" x2="988" y2="105.2" stroke="#26313e" stroke-width=".6"/><text x="41" y="108.2" fill="#8b98a5" font-size="10" text-anchor="end">-0.3</text><line x1="46" y1="75.5" x2="988" y2="75.5" stroke="#26313e" stroke-width="1.1"/><line x1="46" y1="45.8" x2="988" y2="45.8" stroke="#26313e" stroke-width=".6"/><text x="41" y="48.8" fill="#8b98a5" font-size="10" text-anchor="end">+0.3</text><line x1="46" y1="16.0" x2="988" y2="16.0" stroke="#26313e" stroke-width=".6"/><text x="41" y="19.0" fill="#8b98a5" font-size="10" text-anchor="end">+0.7</text><rect x="62.5" y="75.5" width="45.5" height="25.7" fill="#2ea36b" opacity=".82"><title>2015 年 · -0.281</title></rect><text x="85.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2015</text><text x="85.2" y="114.2" fill="#2ea36b" font-size="10" text-anchor="middle">-0.28</text><rect x="141.0" y="75.5" width="45.5" height="20.2" fill="#2ea36b" opacity=".82"><title>2016 年 · -0.221</title></rect><text x="163.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2016</text><text x="163.8" y="108.7" fill="#2ea36b" font-size="10" text-anchor="middle">-0.22</text><rect x="219.5" y="75.5" width="45.5" height="5.2" fill="#2ea36b" opacity=".82"><title>2017 年 · -0.056</title></rect><text x="242.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2017</text><text x="242.2" y="93.7" fill="#2ea36b" font-size="10" text-anchor="middle">-0.06</text><rect x="298.0" y="75.5" width="45.5" height="20.7" fill="#2ea36b" opacity=".82"><title>2018 年 · -0.226</title></rect><text x="320.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2018</text><text x="320.8" y="109.2" fill="#2ea36b" font-size="10" text-anchor="middle">-0.23</text><rect x="376.5" y="75.5" width="45.5" height="13.1" fill="#2ea36b" opacity=".82"><title>2019 年 · -0.143</title></rect><text x="399.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2019</text><text x="399.2" y="101.6" fill="#2ea36b" font-size="10" text-anchor="middle">-0.14</text><rect x="455.0" y="75.5" width="45.5" height="14.1" fill="#2ea36b" opacity=".82"><title>2020 年 · -0.154</title></rect><text x="477.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2020</text><text x="477.8" y="102.6" fill="#2ea36b" font-size="10" text-anchor="middle">-0.15</text><rect x="533.5" y="75.5" width="45.5" height="20.8" fill="#2ea36b" opacity=".82"><title>2021 年 · -0.227</title></rect><text x="556.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2021</text><text x="556.2" y="109.3" fill="#2ea36b" font-size="10" text-anchor="middle">-0.23</text><rect x="612.0" y="75.5" width="45.5" height="28.6" fill="#2ea36b" opacity=".82"><title>2022 年 · -0.312</title></rect><text x="634.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2022</text><text x="634.8" y="117.1" fill="#2ea36b" font-size="10" text-anchor="middle">-0.31</text><rect x="690.5" y="75.5" width="45.5" height="2.1" fill="#2ea36b" opacity=".82"><title>2023 年 · -0.023</title></rect><text x="713.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2023</text><text x="713.2" y="90.6" fill="#2ea36b" font-size="10" text-anchor="middle">-0.02</text><rect x="769.0" y="71.5" width="45.5" height="4.0" fill="#f2545b" opacity=".82"><title>2024 年 · +0.043</title></rect><text x="791.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2024</text><text x="791.8" y="66.5" fill="#f2545b" font-size="10" text-anchor="middle">+0.04</text><rect x="847.5" y="75.5" width="45.5" height="50.3" fill="#2ea36b" opacity=".82"><title>2025 年 · -0.550</title></rect><text x="870.2" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2025</text><text x="870.2" y="138.8" fill="#2ea36b" font-size="10" text-anchor="middle">-0.55</text><rect x="926.0" y="75.5" width="45.5" height="18.2" fill="#2ea36b" opacity=".82"><title>2026 年 · -0.198</title></rect><text x="948.8" y="151.0" fill="#8b98a5" font-size="10" text-anchor="middle">2026</text><text x="948.8" y="106.7" fill="#2ea36b" font-size="10" text-anchor="middle">-0.20</text></svg>
+<div class="note">12 个自然年里 11 年为负（唯一例外 2024 年 +0.043）；2025 年达 −0.550。
+方向稳定，但<b>解释的是资金，不是指数</b>。</div></div>
+
+<h2 id="q3">四 · 波动越大，申赎越活跃（U 型） <small>VOLATILITY</small></h2>
+<div class="card">
+<div class="note">当日涨跌<b>绝对值</b>与净流入相关 <b class="blue">+0.150</b>、与强度相关 <b class="blue">+0.172</b>
+（同期「方向」相关只有 −0.021）。也就是说：<b>决定申赎活跃度的是波动幅度，不是涨跌方向</b>。
+极宽幅日平均净申购 +15.89 亿、净申购占比 59%；极窄幅日反而净流出 −10.42 亿、占比仅 42%。
+资金流更像「市场情绪与波动的镜子」。</div>
+<div class="scroll"><table><thead><tr><th>当日振幅分档</th><th class="n">样本</th><th class="n">涨跌区间(%)</th>
+<th class="n">净流入均值(亿)</th><th class="n">强度均值(%)</th><th class="n">|净流入|均值</th>
+<th class="n">净申购占比</th></tr></thead><tbody><tr><td>极窄幅</td><td class='n'>576</td><td class='n'>-0.19 ~ +0.19</td><td class="n down">-10.42</td><td class="n down">-0.143</td><td class='n'>24.99</td><td class='n'>42.2%</td></tr><tr><td>窄幅</td><td class='n'>575</td><td class='n'>-0.42 ~ +0.42</td><td class="n down">-6.70</td><td class="n down">-0.093</td><td class='n'>25.78</td><td class='n'>43.8%</td></tr><tr><td>中</td><td class='n'>575</td><td class='n'>-0.71 ~ +0.71</td><td class="n down">-0.04</td><td class="n down">-0.002</td><td class='n'>19.72</td><td class='n'>48.0%</td></tr><tr><td>宽幅</td><td class='n'>575</td><td class='n'>-1.23 ~ +1.23</td><td class="n up">+4.17</td><td class="n up">+0.073</td><td class='n'>23.97</td><td class='n'>52.3%</td></tr><tr><td>极宽幅</td><td class='n'>575</td><td class='n'>-8.49 ~ +8.06</td><td class="n up">+15.89</td><td class="n up">+0.414</td><td class='n'>31.98</td><td class='n'>59.3%</td></tr></tbody></table></div>
+</div>
+<div class="chartcard"><svg viewBox="0 0 1000 185" preserveAspectRatio="none"><line x1="46" y1="145.0" x2="988" y2="145.0" stroke="#26313e" stroke-width=".6"/><text x="41" y="148.0" fill="#8b98a5" font-size="10" text-anchor="end">-17.8</text><line x1="46" y1="112.8" x2="988" y2="112.8" stroke="#26313e" stroke-width=".6"/><text x="41" y="115.8" fill="#8b98a5" font-size="10" text-anchor="end">-8.9</text><line x1="46" y1="80.5" x2="988" y2="80.5" stroke="#26313e" stroke-width="1.1"/><line x1="46" y1="48.2" x2="988" y2="48.2" stroke="#26313e" stroke-width=".6"/><text x="41" y="51.2" fill="#8b98a5" font-size="10" text-anchor="end">+8.9</text><line x1="46" y1="16.0" x2="988" y2="16.0" stroke="#26313e" stroke-width=".6"/><text x="41" y="19.0" fill="#8b98a5" font-size="10" text-anchor="end">+17.8</text><rect x="108.2" y="80.5" width="64.0" height="37.8" fill="#2ea36b" opacity=".82"><title>极窄幅 · 均净流入 -10.42 亿 · 强度 -0.143% · n=576</title></rect><text x="140.2" y="161.0" fill="#8b98a5" font-size="10" text-anchor="middle">极窄幅</text><text x="140.2" y="131.3" fill="#2ea36b" font-size="10" text-anchor="middle">-10.42</text><rect x="296.6" y="80.5" width="64.0" height="24.3" fill="#2ea36b" opacity=".82"><title>窄幅 · 均净流入 -6.70 亿 · 强度 -0.093% · n=575</title></rect><text x="328.6" y="161.0" fill="#8b98a5" font-size="10" text-anchor="middle">窄幅</text><text x="328.6" y="117.8" fill="#2ea36b" font-size="10" text-anchor="middle">-6.70</text><rect x="485.0" y="80.5" width="64.0" height="1.2" fill="#2ea36b" opacity=".82"><title>中 · 均净流入 -0.04 亿 · 强度 -0.002% · n=575</title></rect><text x="517.0" y="161.0" fill="#8b98a5" font-size="10" text-anchor="middle">中</text><text x="517.0" y="93.6" fill="#2ea36b" font-size="10" text-anchor="middle">-0.04</text><rect x="673.4" y="65.4" width="64.0" height="15.1" fill="#f2545b" opacity=".82"><title>宽幅 · 均净流入 +4.17 亿 · 强度 +0.073% · n=575</title></rect><text x="705.4" y="161.0" fill="#8b98a5" font-size="10" text-anchor="middle">宽幅</text><text x="705.4" y="60.4" fill="#f2545b" font-size="10" text-anchor="middle">+4.17</text><rect x="861.8" y="22.9" width="64.0" height="57.6" fill="#f2545b" opacity=".82"><title>极宽幅 · 均净流入 +15.89 亿 · 强度 +0.414% · n=575</title></rect><text x="893.8" y="161.0" fill="#8b98a5" font-size="10" text-anchor="middle">极宽幅</text><text x="893.8" y="17.9" fill="#f2545b" font-size="10" text-anchor="middle">+15.89</text></svg><div class="note">五档单调：从窄幅净赎回，到宽幅净申购，呈清晰 U 型（按振幅而非方向）。</div></div>
+
+<h2 id="q4">五 · 分档后续收益：日度看似有效，簇化后全部翻转 <small>BUCKET TEST</small></h2>
+<div class="alert"><b>这是本研究最关键的一处证伪。</b>逐日平均口径下，
+「单日 &gt;100 亿流入」后 T+20 为 <b>+2.49%</b>、胜率 64%（置换 p=0.036，看似显著）；
+但按 20 交易日间隔去重后，只剩 <b>14 个独立簇</b>，簇起点 T+20 变成 <b>−0.45%</b>、胜率 36%。
+「单日 &lt;−100 亿流出」后逐日 T+20 −1.29%，簇级却是 <b>+5.62%</b>、胜率 80%。
+<b>逐日收益差来自连续放量的重叠样本，不是资金的预测力</b>；五档 T+60 置换检验 p 值 0.28~0.87，无一成立。</div>
+<div class="chartcard"><h3>逐日平均 vs 簇起点：T+20 收益（蓝=日度 / 金=簇级）</h3>
+<svg viewBox="0 0 1000 210" preserveAspectRatio="none"><line x1="46" y1="170.0" x2="988" y2="170.0" stroke="#26313e" stroke-width=".6"/><text x="41" y="173.0" fill="#8b98a5" font-size="10" text-anchor="end">-6.3</text><line x1="46" y1="131.5" x2="988" y2="131.5" stroke="#26313e" stroke-width=".6"/><text x="41" y="134.5" fill="#8b98a5" font-size="10" text-anchor="end">-3.1</text><line x1="46" y1="93.0" x2="988" y2="93.0" stroke="#26313e" stroke-width="1.1"/><line x1="46" y1="54.5" x2="988" y2="54.5" stroke="#26313e" stroke-width=".6"/><text x="41" y="57.5" fill="#8b98a5" font-size="10" text-anchor="end">+3.1</text><line x1="46" y1="16.0" x2="988" y2="16.0" stroke="#26313e" stroke-width=".6"/><text x="41" y="19.0" fill="#8b98a5" font-size="10" text-anchor="end">+6.3</text><rect x="65.8" y="93.0" width="54.6" height="15.8" fill="#4a9eff" opacity=".82"><title>大幅流出 · 逐日平均 T+20 -1.29% · n=54</title></rect><text x="93.1" y="186.0" fill="#8b98a5" font-size="10" text-anchor="middle">大幅流出
+日度</text><text x="93.1" y="121.8" fill="#4a9eff" font-size="10" text-anchor="middle">-1.29</text><rect x="160.0" y="24.2" width="54.6" height="68.8" fill="#e3b341" opacity=".82"><title>大幅流出 · 簇起点 T+20 +5.62% · 独立簇 5</title></rect><text x="187.3" y="186.0" fill="#8b98a5" font-size="10" text-anchor="middle">大幅流出
+簇级</text><text x="187.3" y="19.2" fill="#e3b341" font-size="10" text-anchor="middle">+5.62</text><rect x="254.2" y="89.3" width="54.6" height="3.7" fill="#4a9eff" opacity=".82"><title>流出 · 逐日平均 T+20 +0.30% · n=365</title></rect><text x="281.5" y="186.0" fill="#8b98a5" font-size="10" text-anchor="middle">流出
+日度</text><text x="281.5" y="84.3" fill="#4a9eff" font-size="10" text-anchor="middle">+0.30</text><rect x="348.4" y="75.3" width="54.6" height="17.7" fill="#e3b341" opacity=".82"><title>流出 · 簇起点 T+20 +1.45% · 独立簇 18</title></rect><text x="375.7" y="186.0" fill="#8b98a5" font-size="10" text-anchor="middle">流出
+簇级</text><text x="375.7" y="70.3" fill="#e3b341" font-size="10" text-anchor="middle">+1.45</text><rect x="442.6" y="90.6" width="54.6" height="2.4" fill="#4a9eff" opacity=".82"><title>小幅 · 逐日平均 T+20 +0.20% · n=1966</title></rect><text x="469.9" y="186.0" fill="#8b98a5" font-size="10" text-anchor="middle">小幅
+日度</text><text x="469.9" y="85.6" fill="#4a9eff" font-size="10" text-anchor="middle">+0.20</text><rect x="536.8" y="93.0" width="54.6" height="14.8" fill="#e3b341" opacity=".82"><title>小幅 · 簇起点 T+20 -1.21% · 独立簇 2</title></rect><text x="564.1" y="186.0" fill="#8b98a5" font-size="10" text-anchor="middle">小幅
+簇级</text><text x="564.1" y="120.8" fill="#e3b341" font-size="10" text-anchor="middle">-1.21</text><rect x="631.0" y="88.6" width="54.6" height="4.4" fill="#4a9eff" opacity=".82"><title>流入 · 逐日平均 T+20 +0.36% · n=423</title></rect><text x="658.3" y="186.0" fill="#8b98a5" font-size="10" text-anchor="middle">流入
+日度</text><text x="658.3" y="83.6" fill="#4a9eff" font-size="10" text-anchor="middle">+0.36</text><rect x="725.2" y="93.0" width="54.6" height="2.2" fill="#e3b341" opacity=".82"><title>流入 · 簇起点 T+20 -0.18% · 独立簇 21</title></rect><text x="752.5" y="186.0" fill="#8b98a5" font-size="10" text-anchor="middle">流入
+簇级</text><text x="752.5" y="108.2" fill="#e3b341" font-size="10" text-anchor="middle">-0.18</text><rect x="819.4" y="62.5" width="54.6" height="30.5" fill="#4a9eff" opacity=".82"><title>大幅流入 · 逐日平均 T+20 +2.49% · n=47</title></rect><text x="846.7" y="186.0" fill="#8b98a5" font-size="10" text-anchor="middle">大幅流入
+日度</text><text x="846.7" y="57.5" fill="#4a9eff" font-size="10" text-anchor="middle">+2.49</text><rect x="913.6" y="93.0" width="54.6" height="5.5" fill="#e3b341" opacity=".82"><title>大幅流入 · 簇起点 T+20 -0.45% · 独立簇 14</title></rect><text x="940.9" y="186.0" fill="#8b98a5" font-size="10" text-anchor="middle">大幅流入
+簇级</text><text x="940.9" y="111.5" fill="#e3b341" font-size="10" text-anchor="middle">-0.45</text></svg>
+<div class="note">蓝柱与金柱方向反复相反 ⇒ 任何基于「逐日事件数」的胜率统计都会被连续簇放大，不能直接用于实盘。</div></div>
+<div class="card"><div class="scroll"><table>
+<thead><tr><th>净流入分档</th><th class="n">事件</th><th class="n">独立簇</th>
+<th class="n">T+5(%)</th><th class="n">T+20(%)</th><th class="n">T+60(%)</th>
+<th class="n">簇级 T+20(%)</th><th class="n">置换 p (T+20/60)</th><th class="n">日度 T+20 胜率</th></tr></thead>
+<tbody><tr><td>大幅流出 <-100亿</td><td class='n'>54</td><td class='n'>5</td><td class="n up">+0.29</td><td class="n down">-1.29</td><td class="n down">-3.39</td><td class="n up">+5.62</td><td class="n dim">0.847 / 0.873</td><td class='n'>41%</td></tr><tr><td>流出 -100~-20亿</td><td class='n'>365</td><td class='n'>18</td><td class="n up">+0.03</td><td class="n up">+0.30</td><td class="n down">-0.05</td><td class="n up">+1.45</td><td class="n dim">0.438 / 0.733</td><td class='n'>53%</td></tr><tr><td>小幅 -20~20亿</td><td class='n'>1968</td><td class='n'>2</td><td class="n up">+0.03</td><td class="n up">+0.20</td><td class="n up">+0.91</td><td class="n down">-1.21</td><td class="n dim">0.662 / 0.303</td><td class='n'>53%</td></tr><tr><td>流入 20~100亿</td><td class='n'>432</td><td class='n'>21</td><td class="n up">+0.12</td><td class="n up">+0.36</td><td class="n up">+0.92</td><td class="n down">-0.18</td><td class="n dim">0.359 / 0.357</td><td class='n'>47%</td></tr><tr><td>大幅流入 >100亿</td><td class='n'>57</td><td class='n'>14</td><td class="n up">+0.81</td><td class="n up">+2.49</td><td class="n up">+1.99</td><td class="n down">-0.45</td><td class="n dim">0.036 / 0.284</td><td class='n'>64%</td></tr></tbody></table></div>
+<div class="note">收益一律从 T+1 收盘起算；T+20 / T+60 置换 p 为「事件日整体循环平移」4000 次的右尾概率。</div></div>
+<div class="card"><h3>极端事件的年份集中度</h3><div class="scroll"><table>
+<thead><tr><th>分档</th><th class="n">独立簇</th><th>事件年份分布</th></tr></thead><tbody><tr><td>大幅流出 <-100亿</td><td class='n'>5</td><td>2015:3、2024:5、2025:4、2026:42</td></tr><tr><td>流出 -100~-20亿</td><td class='n'>18</td><td>2015:37、2017:1、2018:1、2019:17、2020:31、2021:46、2022:29、2023:30、2024:40、2025:79、2026:54</td></tr><tr><td>小幅 -20~20亿</td><td class='n'>2</td><td>2015:177、2016:242、2017:243、2018:232、2019:206、2020:184、2021:146、2022:155、2023:144、2024:95、2025:103、2026:41</td></tr><tr><td>流入 20~100亿</td><td class='n'>21</td><td>2015:21、2016:2、2018:10、2019:21、2020:27、2021:51、2022:58、2023:65、2024:81、2025:52、2026:44</td></tr><tr><td>大幅流入 >100亿</td><td class='n'>14</td><td>2015:4、2020:1、2023:3、2024:21、2025:5、2026:23</td></tr></tbody></table></div>
+<div class="note">54 个大幅流出日里 <b>42 个落在 2026-01</b>（史上最大单月赎回 −7321 亿），
+57 个大幅流入日里 <b>44 个落在 2024 与 2026</b>。所谓「规律」其实是几段特定行情的重复计数。</div></div>
+
+<h2 id="q5">六 · 极值事件复核 <small>EXTREMES</small></h2>
+<div class="two">
+<div class="card"><h3>单日净流入 Top 10</h3><div class='scroll'><table><thead><tr><th>日期</th><th class='n'>当日净流入(亿)</th><th class='n'>当日上证(%)</th><th class='n'>T+20(%)</th><th class='n'>T+60(%)</th><th class='n'>上证点位</th></tr></thead><tbody><tr><td>2025-04-08</td><td class="n up">+786.5</td><td class="n up">+1.58</td><td class="n up">+5.72</td><td class="n up">+9.75</td><td class='n'>3145.6</td></tr><tr><td>2026-11-03</td><td class="n up">+627.3</td><td class="n down">-0.82</td><td class="n dim">—</td><td class="n dim">—</td><td class='n'>3608.1</td></tr><tr><td>2024-09-30</td><td class="n up">+429.0</td><td class="n up">+8.06</td><td class="n down">-2.95</td><td class="n down">-3.95</td><td class='n'>3336.5</td></tr><tr><td>2025-04-07</td><td class="n up">+407.0</td><td class="n down">-7.34</td><td class="n up">+6.25</td><td class="n up">+10.41</td><td class='n'>3096.6</td></tr><tr><td>2026-10-23</td><td class="n up">+383.6</td><td class="n up">+0.89</td><td class="n dim">—</td><td class="n dim">—</td><td class='n'>3690.5</td></tr><tr><td>2026-07-20</td><td class="n up">+373.9</td><td class="n up">+0.85</td><td class="n up">+3.26</td><td class="n down">-3.92</td><td class='n'>3796.3</td></tr><tr><td>2026-11-02</td><td class="n up">+362.3</td><td class="n up">+1.08</td><td class="n dim">—</td><td class="n dim">—</td><td class='n'>3638.0</td></tr><tr><td>2015-07-06</td><td class="n up">+358.3</td><td class="n up">+2.41</td><td class="n up">+0.79</td><td class="n down">-15.66</td><td class='n'>3775.9</td></tr><tr><td>2024-02-05</td><td class="n up">+352.3</td><td class="n down">-1.02</td><td class="n up">+9.12</td><td class="n up">+11.84</td><td class='n'>2702.2</td></tr><tr><td>2026-11-04</td><td class="n up">+336.9</td><td class="n up">+2.16</td><td class="n dim">—</td><td class="n dim">—</td><td class='n'>3686.2</td></tr></tbody></table></div></div>
+<div class="card"><h3>单日净流出 Top 10</h3><div class='scroll'><table><thead><tr><th>日期</th><th class='n'>当日净流入(亿)</th><th class='n'>当日上证(%)</th><th class='n'>T+20(%)</th><th class='n'>T+60(%)</th><th class='n'>上证点位</th></tr></thead><tbody><tr><td>2026-01-28</td><td class="n down">-1118.5</td><td class="n up">+0.27</td><td class="n down">-0.81</td><td class="n up">+0.53</td><td class='n'>4151.2</td></tr><tr><td>2024-09-20</td><td class="n down">-894.2</td><td class="n up">+0.03</td><td class="n up">+20.85</td><td class="n up">+21.91</td><td class='n'>2736.8</td></tr><tr><td>2026-01-26</td><td class="n down">-868.8</td><td class="n down">-0.09</td><td class="n down">-1.39</td><td class="n down">-0.67</td><td class='n'>4132.6</td></tr><tr><td>2026-01-16</td><td class="n down">-846.1</td><td class="n down">-0.26</td><td class="n up">+0.08</td><td class="n down">-0.19</td><td class='n'>4101.9</td></tr><tr><td>2026-01-21</td><td class="n down">-772.9</td><td class="n up">+0.08</td><td class="n up">+0.98</td><td class="n down">-0.88</td><td class='n'>4116.9</td></tr><tr><td>2026-01-23</td><td class="n down">-669.0</td><td class="n up">+0.33</td><td class="n down">-0.24</td><td class="n down">-0.61</td><td class='n'>4136.2</td></tr><tr><td>2026-01-15</td><td class="n down">-582.7</td><td class="n down">-0.33</td><td class="n down">-0.48</td><td class="n down">-0.41</td><td class='n'>4112.6</td></tr><tr><td>2026-01-22</td><td class="n down">-519.5</td><td class="n up">+0.14</td><td class="n up">+1.12</td><td class="n down">-1.39</td><td class='n'>4122.6</td></tr><tr><td>2026-01-20</td><td class="n down">-484.5</td><td class="n down">-0.01</td><td class="n up">+0.72</td><td class="n down">-0.90</td><td class='n'>4113.6</td></tr><tr><td>2026-01-27</td><td class="n down">-434.4</td><td class="n up">+0.18</td><td class="n down">-1.03</td><td class="n up">+0.22</td><td class='n'>4139.9</td></tr></tbody></table></div></div>
+</div>
+<div class="note">Top10 流出有 9 条来自 2026-01 同一簇；Top10 流入里 2026-10/11 的 4 条尚不足 T+20，
+表中如实留空。极值之后的 T+20 有正有负（−2.95% ~ +9.12%），<b>没有一致方向</b>。</div>
+
+<h2 id="q6">七 · 参考建议与当前定位 <small>ACTION · 条件式</small></h2>
+<div class="card">
+<div class="note"><b>当前状态（份额数据日 2026-11-09）</b>：全宽基 16 只单日净流入
+<b>-4.8 亿</b>（强度 -0.058%），沪深300 八只 -0.2 亿，篮子 8236 亿，
+上证 3660.79；近 20 日累计 <b>+3547.6 亿</b>、占篮子 43.07%，
+滚动 250 日分位 51.6%。属<b>巨额回补后动能衰减</b>，方向判断：<b class="gold">中性偏弱</b>。</div>
+<div class="act">
+<b>参考建议（条件式，不构成买卖指令）</b><br>
+<b>① 若</b>出现「单日净流入 &gt; 100 亿 + 指数当日大跌」：把它理解为<b>托底 / 逆势申购的确认</b>，不追买；
+<b>只有当</b>指数同时收复关键均线且成交量配合，才按你既有的策略体系判断；<b>否则</b>不因资金金额单独加仓。<br>
+<b>② 若</b>出现「单日净流出 &lt; −100 亿」：历史上仅 5 个独立簇、且几乎全来自 2026-01 那一波赎回，
+<b>不能当逃顶信号</b>；可标记为「资金相位转弱」的观察项，需配合指数是否跌破前低再定；<b>否则</b>不单独减仓。<br>
+<b>③ 其余绝大多数情形</b>：资金结构<b>只作观察、不作择时</b>。滚动分位与强度用来回答「钱进得多不多、进了哪个风格」，
+不用来决定买卖点。<br>
+<b>④ 当前执行口径</b>：若下一份额公布日全宽基净流入重回 <b>+204 亿</b>（滚动 95 分位阈值）以上、
+且沪深300 同步转正，可维持现有敞口观察；否则维持<b>中性偏弱</b>判断，不因单日数据加减仓。
+</div>
+<div class="note"><b>方向置信度</b>：对「资金流不能用于择时」这一判断为<b>偏空、置信度较高</b>
+（4 类独立检验 + 3 个分区间 + 逐年稳定性一致）；对「当下行情」为<b>中性偏弱、置信度中等</b>
+（仅单日份额数据，且第 5 轮牛市周期结束后回撤未确认）。
+<b>支撑 / 压力</b>：本页不做个股或指数点位预测，故不给出具体支撑压力位；若需下一步，
+应回到已封版的 ROC 轮动策略与其 own 的价位口径，而不是用资金流替代。</div>
+</div>
+
+<footer>
+<b>数据来源与时效</b>：上海证券交易所 ETF 份额日频接口（<code>query.sse.com.cn</code>，T+1 公布，盘中不可得）、
+新浪财经日线上证综指（已与本地 TDX 000001 逐日交叉校验）、本地 ETF 复权价长历史仅用于既有对照。
+样本 2015-01-06 ~ 2026-11-09，2877 个交易日；研究计算日期 2026-11-12。<br>
+<b>方法口径</b>：净流入 = Σ(当日份额变动 × 当日价格)；强度 = 净流入 / 篮子规模；
+后续收益从 T+1 收盘起算；事件按 20 交易日间隔簇化；显著性用事件日整体循环平移置换检验（4000 次，种子固定）。
+全部数字可用 <code>_inflow_idx_relation.py</code> 一键复现，明细见 <code>out/inflow_idx_events.csv</code>。<br>
+<b>合规披露</b>：本页为公开数据的个人历史复盘，<b>不构成投资建议</b>，不承诺任何收益、不保证准确率、不自动下单。
+历史样本存在重叠、结构性变化与选择性，统计结果不能外推未来表现；波段与极值均为事后识别，不可实盘交易。
+国家队资金亦可能通过其他渠道入市，本指标不覆盖。<b>实盘决策与风险由投资者自行承担。</b>
+</footer>
+</div></body></html>

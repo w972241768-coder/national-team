@@ -639,7 +639,7 @@ def main():
     # 排除 docs/，重复提交不会触发死循环。本地非 git 环境静默跳过即可。
     try:
         changed = embed_verdict(payload["verdict"], os.path.join(DOCS, "index.html"),
-                                payload.get("quotes", []), lite)
+                                payload.get("quotes", []), lite, payload["rows"])
         print("  结论+明细内嵌：%s（轻版 %.0f KB / 曲线 %.0f KB）"
               % ("已更新 index.html" if changed else "内容无变化",
                  os.path.getsize(os.path.join(DOCS, "data.json")) / 1024.0,

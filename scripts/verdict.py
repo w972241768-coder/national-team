@@ -16,6 +16,19 @@ import re
 
 START = "<!--VERDICT:START-->"
 END = "<!--VERDICT:END-->"
+HIST_START = "<!--HIST:START-->"
+HIST_END = "<!--HIST:END-->"
+
+
+def hist_block(rows):
+    """全历史日度序列压成紧凑数组 [d, nf, nf300, idx] 内嵌，零请求即可缩放。
+
+    2877 天 × 4 个数约 80 KB；比对象数组（304 KB）小 4 倍，且离线全部可用。
+    """
+    arr = [[str(r["d"]), r["nf"], r["nf300"], r["idx"]] for r in rows]
+    txt = json.dumps(arr, ensure_ascii=False, separators=(",", ":"))
+    return (HIST_START + "\n" + '<script id="ntHist" type="application/json">' +
+            txt + '</script>\n' + HIST_END)
 
 
 def _s(v, d=1, sign=False):
@@ -186,7 +199,7 @@ def _d8(s):
     return s[:4] + "-" + s[4:6] + "-" + s[6:8] if len(s) == 8 else s
 
 
-def embed_verdict(v, html_path, quotes=None, lite=None):
+def embed_verdict(v, html_path, quotes=None, lite=None, hist_rows=None):
     """幂等替换 index.html 里的 VERDICT 块，并内嵌精简快照供 JS 覆盖使用。
 
     quotes（26 只代码表，约 2 KB）一并内嵌：即使 data.json 完全不可用，
@@ -209,6 +222,12 @@ def embed_verdict(v, html_path, quotes=None, lite=None):
              '<script id="ntSnapshot" type="application/json">' + snap + '</script>\n' + END)
     new = re.sub(re.escape(START) + r".*?" + re.escape(END),
                  lambda _m: block, html, count=1, flags=re.S)
+    # 曲线序列一并内嵌（页面零请求即可画出近 4 年并缩放）。缺标记则静默跳过，
+    # 保持对旧版 index.html 的兼容。
+    if hist_rows and HIST_START in new and HIST_END in new:
+        hb = hist_block(hist_rows)
+        new = re.sub(re.escape(HIST_START) + r".*?" + re.escape(HIST_END),
+                     lambda _m: hb, new, count=1, flags=re.S)
     if new == html:
         return False
     tmp = html_path + ".tmp"

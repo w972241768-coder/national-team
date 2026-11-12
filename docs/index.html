@@ -653,6 +653,47 @@ function toggleDiag(){
   ].join("\n");
   d.style.display="block";
 }
+/* =====WEAKNET_HELPER:START===== */
+/* 第三方行情/分时统一超时：弱网下裸 fetch 会永久 pending，页面就永远「载入中…」。
+   AbortController 会连响应体一起中断；老内核降级为纯计时器拒绝。 */
+function fetchJTO(url,ms){
+  return new Promise(function(res,rej){
+    var ctrl=typeof AbortController!=="undefined"?new AbortController():null,done=false;
+    var tm=setTimeout(function(){
+      if(done)return;done=true;
+      try{if(ctrl)ctrl.abort()}catch(e){}
+      rej(new Error("超时 "+(ms||9000)+"ms"));
+    },ms||9000);
+    function fin(e,v){if(done)return;done=true;clearTimeout(tm);e?rej(e):res(v)}
+    fetch(url,{cache:"no-store",signal:ctrl?ctrl.signal:undefined}).then(function(r){
+      if(!r.ok)throw new Error("HTTP "+r.status);
+      return r.json();
+    }).then(function(j){fin(null,j)},function(e){fin(e)});
+  });
+}
+/* 行情表骨架：实时源不可达时用内嵌代码表渲染，明确「—」而不是永远「载入中…」 */
+function renderQuoteSkeleton(note){
+  if(!QCFG.length)return;
+  var h="",cur="";
+  QCFG.forEach(function(q){
+    var g=q.grp==="in"?"纳入净流入计算 · 16 只沪市宽基":"仅行情 · 深市 9 只 / 560010";
+    if(g!==cur){cur=g;h+='<tr class="grp"><td colspan="9">'+esc(g)+"</td></tr>"}
+    h+="<tr><td>"+esc(q.name)+"</td><td>"+esc(q.code)+"</td>"+
+      '<td class="n dim">—</td><td class="n dim">—</td><td class="n dim">—</td>'+
+      '<td class="n dim">—</td><td class="n dim">—</td><td class="n dim">—</td>'+
+      '<td class="dim">—</td></tr>';
+  });
+  $("qbody").innerHTML=h;
+}
+/* 上次成功行情快照（刷新后弱网仍能看到数值，必须标注非实时） */
+function saveQuoteSnap(q){
+  try{localStorage.setItem("ntLastQuotes",JSON.stringify({t:Date.now(),q:q}))}catch(e){}
+}
+function loadQuoteSnap(){
+  try{var x=JSON.parse(localStorage.getItem("ntLastQuotes")||"null");
+      return x&&x.q&&Date.now()-x.t<86400000?x:null}catch(e){return null}
+}
+/* =====WEAKNET_HELPER:END===== */
 function fetchTO(url,ms){
   return new Promise(function(res,rej){
     var done=false;
@@ -686,9 +727,18 @@ function isTradingNow(){
 async function fetchQuotes(){
   var syms=QCFG.map(function(q){return symOf(q.code)}).join(",");
   var url="https://qt.gtimg.cn/q="+syms+"&t="+Date.now();
-  var r=await fetch(url,{cache:"no-store"});
-  if(!r.ok)throw new Error("HTTP "+r.status);
-  var buf=await r.arrayBuffer();
+  /* 必须给「fetch + 读完整响应体」整体加超时：弱网下 headers 已到、body 滴流，
+     fetchTO 那种只管到 headers 的超时救不了这里。 */
+  var ctrl=typeof AbortController!=="undefined"?new AbortController():null,done=false;
+  var tm=setTimeout(function(){done=true;try{if(ctrl)ctrl.abort()}catch(e){}},9000);
+  var buf;
+  try{
+    var r=await fetch(url,{cache:"no-store",signal:ctrl?ctrl.signal:undefined});
+    if(!r.ok)throw new Error("HTTP "+r.status);
+    buf=await r.arrayBuffer();
+    if(done)throw new Error("超时 9000ms");
+    clearTimeout(tm);
+  }catch(e){clearTimeout(tm);throw e}
   var txt;
   try{ txt=new TextDecoder("gbk").decode(buf); }
   catch(e){ try{ txt=new TextDecoder("gb18030").decode(buf); }
@@ -825,9 +875,18 @@ async function loadQuotes(manual){
            /iPhone|iPad|iPod/i.test(ua)?"iOS Safari":
            /Android/i.test(ua)?"安卓浏览器":"当前浏览器";
     ST.qhow="失败"; ST.qn=0; ST.qerr=errs.join(" / ");
-    $("qnote").innerHTML='<span class="err">实时源连接失败（'+esc(ST.qerr)+
-      "）。<b>"+esc(br)+"</b>可能拦截了第三方行情请求：请用系统浏览器（Safari / Chrome）直接打开本页，"+
-      "关闭无痕模式与「阻止跨站跟踪」后重试；历史数据不受影响。</span> "+
+    var snap=loadQuoteSnap(),snapTxt="";
+    if(snap){
+      renderQuotes(snap.q);
+      var st=new Date(snap.t).toTimeString().slice(0,5);
+      snapTxt=" 下方表格为 <b>"+esc(st)+"</b> 的上一次成功快照（<b>非实时</b>，仅作参照）。";
+    }else{
+      renderQuoteSkeleton(true);
+    }
+    $("qnote").innerHTML='<span class="err">⚠️ 实时源连接超时或不可达（'+esc(ST.qerr)+
+      "）。常见原因：<b>网速过慢</b>（低于 100 Kbps 时 9 秒超时）或<b>当地网络/浏览器拦截国内行情接口</b>。"+
+      "请用系统浏览器（Safari / Chrome）直接打开、关闭无痕与「阻止跨站跟踪」，或换网络后点右侧重试。"+
+      "<b>已确认数据、结论与历史曲线来自 GitHub Pages，不受影响、仍可正常查看</b>。"+snapTxt+"</span> "+
       '<button class="btn" onclick="loadQuotes(true)">重试实时源</button>';
     $("dot").className="dot"; $("mkt").textContent="实时源不可用";
     updateStatus(); return;
@@ -835,6 +894,7 @@ async function loadQuotes(manual){
   ST.qhow=how; ST.qn=Object.keys(data).length; ST.qerr="";
   LASTQ=Date.now();
   renderQuotes(data);
+  saveQuoteSnap(data);
   var n=isTradingNow();
   $("dot").className="dot "+(n?"on":"off");
   $("mkt").textContent=n?"盘中":"已收盘 / 休市";
@@ -925,10 +985,9 @@ var IDB=null,IDB_MODE="in";
 async function minuteJson(sym){
   for(var k=0;k<IDB_HOSTS.length;k++){
     try{
-      var r=await fetch(IDB_HOSTS[k]+"/appstock/app/minute/query?code="+sym+"&t="+Date.now(),
-                        {cache:"no-store"});
-      if(!r.ok)continue;
-      var j=await r.json(),d=j&&j.data&&j.data[sym];
+      var j=await fetchJTO(IDB_HOSTS[k]+"/appstock/app/minute/query?code="+sym+
+                           "&t="+Date.now(),9000);
+      var d=j&&j.data&&j.data[sym];
       if(d&&d.data&&d.data.data&&d.data.data.length)return d;
     }catch(e){}
   }
@@ -944,19 +1003,45 @@ async function loadIntraday(force){
   if(INTRADAY_LOADED&&!isTradingNow()&&!force)return;
   /* 最多 6 次（6×5 分钟）退避重试，数据源恢复后能自动补回；成功即清零。 */
   if(INTRADAY_FAILS>=6&&!isTradingNow()&&!force)return;
-  var list=QCFG.slice();                       // 26 只全抓，两种口径共用一份缓存
-  var res=await Promise.all(list.map(async function(q){
-    var s=symOf(q.code),d=await minuteJson(s);
-    if(!d)return null;
+  /* 首屏立刻给可见反馈，别让分时区域空着。已有上次快照则先不清空。 */
+  if(!INTRADAY_LAST_HTML){
+    var cached=null;
+    try{cached=JSON.parse(localStorage.getItem("ntLastBars")||"null")}catch(e){}
+    if(cached&&cached.h&&Date.now()-cached.t<86400000){
+      INTRADAY_LAST_HTML=cached.h;INTRADAY_LAST_AT=new Date(cached.t).toTimeString().slice(0,5);
+      $("intraday").innerHTML='<div class="note warn" style="margin:0 0 6px">'+
+        "⏳ 正在刷新分钟分时…当前显示 <b>"+esc(INTRADAY_LAST_AT)+
+        "</b> 的上一次成功快照（<b>非实时</b>），不影响上方已确认数据。</div>"+cached.h;
+    }else{
+      $("intraday").innerHTML='<div class="note dim">⏳ 正在加载分钟分时…（弱网可能需 10~30 秒，'+
+        "不影响上方结论与已确认数据）</div>";
+    }
+  }
+  /* 默认口径只抓 16 只篮内（切到 26 只时再补），避免 27 个并发把行情连接挤死。
+     每个请求自带 9 秒超时；整体 22 秒兜底，超时也用已拿到的部分数据画，不等全部。 */
+  var want=IDB_MODE==="all"?QCFG.slice():QCFG.filter(function(q){return q.grp==="in"});
+  var list=want,collected=[];
+  var jobs=want.map(async function(q){
+    var d=await minuteJson(symOf(q.code));
+    if(!d)return;
     var amt={};
     (d.data.data||[]).forEach(function(line){
       var p=line.split(" ");
       if(p.length<4||p[0]>"1500")return;      // 过滤 15:01~15:30 盘后延续点
       var v=parseFloat(p[3]);if(isFinite(v))amt[p[0]]=v;   // 累计成交额（元）
     });
-    return {code:q.code,grp:q.grp,amt:amt};
-  }));
-  var idxD=await minuteJson("sh000001"),idxPx={},prevClose=null;
+    collected.push({code:q.code,grp:q.grp,amt:amt});
+  });
+  var idxJob=minuteJson("sh000001");
+  await Promise.race([
+    Promise.all(jobs),
+    new Promise(function(rs){setTimeout(rs,22000)})
+  ]);
+  var res=collected.slice();
+  var idxD=null;
+  try{idxD=await Promise.race([idxJob,
+      new Promise(function(rs){setTimeout(function(){rs(null)},9000)})])}catch(e){}
+  var idxPx={},prevClose=null;
   if(idxD){
     (idxD.data.data||[]).forEach(function(line){
       var p=line.split(" ");
@@ -970,14 +1055,15 @@ async function loadIntraday(force){
   var timeSet={};
   etfs.forEach(function(x){Object.keys(x.amt).forEach(function(t){timeSet[t]=1})});
   var times=Object.keys(timeSet).sort();
-  if(times.length<10){
+  if(times.length<10||etfs.length<5){
     INTRADAY_FAILS++;
     var stale=INTRADAY_LAST_HTML
-      ? '<div class="err" style="margin:0 0 6px">分时源暂时不可用（取到 '+etfs.length+"/"+list.length+
-        " 只），当前显示 "+esc(INTRADAY_LAST_AT)+" 的上一次快照；5 分钟后自动重试。"+
-        "不影响实时快照与全部历史数据。</div>"+INTRADAY_LAST_HTML
-      : '<div class="err">分时数据暂不可用（取到 '+etfs.length+"/"+list.length+
-        " 只），5 分钟后自动重试。不影响上方实时快照与历史数据。</div>";
+      ? '<div class="err" style="margin:0 0 6px">⚠️ 分时源连接超时或网络过慢（取到 '+etfs.length+"/"+list.length+
+        " 只），当前显示 "+esc(INTRADAY_LAST_AT)+" 的上一次快照（<b>非实时</b>）；5 分钟后自动重试。</div>"+
+        INTRADAY_LAST_HTML+'<button class="btn" onclick="loadIntraday(true)">重试分时</button>'
+      : '<div class="err">⚠️ 分时源连接超时或网络过慢（取到 '+etfs.length+"/"+list.length+
+        " 只）。<b>已确认的净流入、结论、历史数据均不受影响</b>，可稍后自动重试或点右侧按钮。</div>"+
+        '<button class="btn" onclick="loadIntraday(true)">重试分时</button>';
     $("intraday").innerHTML=stale;return;
   }
   INTRADAY_FAILS=0;INTRADAY_LOADED=true;
@@ -1105,11 +1191,14 @@ function paintIntraday(){
     " 亿</b> · 累计 <b>"+f(last.cum,1)+"</b> 亿（"+benchLab+" "+f(bench,1)+" 亿 ⇒ 已完成 <b>"+
     f(last.cum/bench*100,1)+"%</b>） · 上证 <b class='"+(chg!==null&&chg<0?"down":"up")+"'>"+
     (lastIdx!==null?f(lastIdx,2):"--")+"</b>"+(chg!==null?"（"+f(chg,2,true)+"%）":"")+
-    " · 取到 <b>"+IDB.ok+"/"+IDB.total+"</b> 只"+(hasIdx?"":" · <span class='warn'>指数分时暂不可用，橙线省略</span>")+
+    " · 取到 <b>"+IDB.ok+"/"+IDB.total+"</b> 只"+
+    (IDB.ok<IDB.total?' <span class="warn">（弱网部分数据，仅取到部分标的）</span>':"")+
+    (hasIdx?"":" · <span class='warn'>指数分时暂不可用，橙线省略</span>")+
     "</div>";
   var html=stat+svg(w,h,o.join(""));
   $("intraday").innerHTML=html;
   INTRADAY_LAST_HTML=html;
+  try{localStorage.setItem("ntLastBars",JSON.stringify({t:Date.now(),h:html}))}catch(e){}
   INTRADAY_LAST_AT=new Date(Date.now()+(8+new Date().getTimezoneOffset()/60)*3600000)
     .toTimeString().slice(0,5);
   $("idPrevLab").textContent="昨收 "+(isFinite(pv)?f(pv,2):"--");
@@ -1817,6 +1906,12 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
   }catch(e){}
   wrapTables();
   paintVerdict(v0);
+  /* 🔴 实时链路零等待启动：旧版把它排在 await data.json 之后，弱网下明细请求
+     要拖满 10 秒超时，行情表就一直停在静态「正在连接实时行情源…」。
+     QCFG 先用内嵌代码表初始化，data.json 成功后会覆盖（内容相同）。 */
+  try{QCFG=(SNAP.quotes&&SNAP.quotes.length)?SNAP.quotes.slice():QCFG}catch(e){}
+  try{loadQuotes(true);scheduleQuotes()}catch(e){}
+  setTimeout(function(){try{loadIntraday(true);intradayLoop()}catch(e){}},2500);
   // ①b 明细恒可见：轻版数据已内嵌进网页，零请求先渲染一遍。
   //    手机即便一个外部请求都发不出去，KPI 与全部表格也立即有数。
   if(SNAP.lite&&SNAP.lite.kpi){
@@ -1868,9 +1963,9 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
     var saved=localStorage.getItem("ntGhToken");
     if(saved){$("tok").value=saved;$("tok").placeholder="已保存（可留空直接触发）"}
   }catch(e){}
-  try{loadQuotes(true); scheduleQuotes(); loadIntraday(true); intradayLoop();}catch(e){}
-  // ③b 曲线数据独立异步加载；失败只影响两张历史曲线图
-  loadHistory();
+  // ③ 实时链路已在开头启动；分时请求较重，延后 2.5 秒避免挤占行情连接。
+  // ③b 曲线数据独立异步加载（内嵌 2879 天已可离线缩放），延后 3 秒再核对云端。
+  setTimeout(function(){try{loadHistory()}catch(e){}},3000);
 
   // ④ 状态文件独立拉取，失败不影响任何结论
   fetchTO("state.json?t="+Date.now(),8000).then(function(r){return r.json()}).then(function(s){

@@ -322,6 +322,68 @@ def build(sh, nav, idx):
     return rows, first_seen
 
 
+def _shift_months(dstr, months):
+    """YYYYMMDD 往前推 months 个日历月；日号超出目标月末时取月末。"""
+    import calendar
+    y, m, day = int(dstr[:4]), int(dstr[4:6]), int(dstr[6:8])
+    t = y * 12 + (m - 1) - months
+    ny, nm = t // 12, t % 12 + 1
+    nd = min(day, calendar.monthrange(ny, nm)[1])
+    return "%04d%02d%02d" % (ny, nm, nd)
+
+
+def period_style(rows, styles):
+    """按「区间 × 宽基指数分类」汇总净流入（亿元），供页面区间切换表使用。
+
+    区间用日历月回看，与研报式「2024年至今 / 近一年 / 近半年 / 近三个月」
+    对齐；实际起止交易日由数据决定并原样返回，前端显示真实日期，不做外推。
+    ⚠️ 份额口径只覆盖沪市 16 只，深市分类不可得，缺口在 missing 里如实列出，
+    绝不用 0 或估算值填空列。
+    """
+    if not rows:
+        return {"cols": list(styles), "items": [], "focus": [], "missing": [], "note": ""}
+    end = rows[-1]["d"]
+    defs = [
+        ("2024年至今", "20240101"),
+        ("近一年", _shift_months(end, 12)),
+        ("近半年", _shift_months(end, 6)),
+        ("近三个月", _shift_months(end, 3)),
+        ("全历史", "19000101"),
+    ]
+    items = []
+    for label, key in defs:
+        sub = [r for r in rows if r["d"] >= key]
+        if not sub:
+            continue
+        by = {s: round(sum(r["by"][s] for r in sub), 1) for s in styles}
+        ranked = sorted(styles, key=lambda s: -by[s])
+        items.append({
+            "label": label, "key": key,
+            "start": sub[0]["d"], "end": sub[-1]["d"], "days": len(sub),
+            # 合计按各分类之和取，保证页面上「合计 = 各列相加」严格成立
+            "total": round(sum(by.values()), 1), "by": by,
+            "top_in": ranked[0], "top_out": ranked[-1],
+        })
+    return {
+        "cols": list(styles),
+        "items": items,
+        # 参考图里被重点标注的三列，本页三列均可计算
+        "focus": ["沪深300", "中证A500", "上证50"],
+        "missing": [
+            {"name": "创业板指", "why": "对应 ETF 以深市为主，深交所无公开日频份额接口"},
+            {"name": "创业板50", "why": "深市 ETF，日频份额不可得"},
+            {"name": "双创50", "why": "跨市场 ETF，日频份额不可得"},
+            {"name": "中证2000", "why": "篮子内无同口径份额序列"},
+            {"name": "国证2000", "why": "篮子内无同口径份额序列"},
+            {"name": "其他宽基", "why": "兜底分类，本页按跟踪指数精确归类、不设兜桶"},
+        ],
+        "note": ("本页为沪市 16 只宽基 ETF 的份额变动推算净流入，按跟踪指数归为 7 类；"
+                 "上证指数（综指ETF富国）是本站独有分类。所有数值为区间内逐日净流入之和，"
+                 "非区间首尾规模差。深市标的仅在本页第一部分提供实时行情，不计入净流入。"),
+        "asof": end,
+    }
+
+
 def fwd(rows, i, k):
     if i + 1 + k >= len(rows):
         return None
@@ -560,6 +622,8 @@ def main():
         "styles": STYLES,
         "style_month": style_month,
         "daily_style": daily_style,
+        # 多区间 × 分类净流入合计（区间切换表）。进 lite ⇒ 自动内嵌快照，离线可用。
+        "period_style": period_style(rows, STYLES),
         "fund_flow": fund_flow,
         "top_days": top_days,
         "quint_all": quint(rows, "pct"),

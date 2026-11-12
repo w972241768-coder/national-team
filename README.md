@@ -233,3 +233,5 @@ scripts/update.py      数据更新管线（GitHub Actions 调用）
 样本存在重叠与选择性，不能外推为未来表现。国家队资金亦可能通过其他渠道入市，本指标不覆盖。
 
 <!-- pages-build-trigger: 2026-11-10 21:36 CST · 明细内嵌 + 手机零横滚版 -->
+
+<!-- pages rebuild 2026-11-12T00:24:00.482Z -->

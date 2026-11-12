@@ -265,6 +265,7 @@ h2.pstitle small{display:inline}
     <span class="tag">行情 <b id="qtime">--:--:--</b></span>
     <span class="tag" id="cd">--</span>
     <button class="btn" onclick="loadQuotes(true)">立即刷新</button>
+    <button class="btn" onclick="forceUpdate()">强制更新页面</button>
   </div>
 </header>
 
@@ -302,7 +303,7 @@ h2.pstitle small{display:inline}
   </div>
 </details>
 
-<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 15 秒自动刷新</small></h2>
+<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 15 秒自动刷新 · 版本 20261112-1705</small></h2>
 <div class="note" id="qnote">正在连接实时行情源…</div>
 <!--IDB:START-->
 <div class="panel">
@@ -317,7 +318,7 @@ h2.pstitle small{display:inline}
       <button class="btn zbtn" id="idBtnAll" onclick="setIntradayMode('all')">26 只全口径</button>
     </div>
   </div>
-  <div id="intraday"></div>
+  <div id="intraday"><div class="note dim" id="idbPh">⏳ 正在加载分钟分时…（弱网可能需 10~30 秒；已确认数据、结论与历史曲线不受影响）</div></div>
   <div class="idread" id="idRead">
     <b>怎么读这张图</b>：柱子突然拔高、又伴随橙线向上，往往是资金进场；柱子放量但指数不动或下跌，
     则更像托底或对倒。左轴是分钟成交额（亿元），右侧轴是上证点位，虚线是昨收。<br>
@@ -694,6 +695,29 @@ function loadQuoteSnap(){
       return x&&x.q&&Date.now()-x.t<86400000?x:null}catch(e){return null}
 }
 /* =====WEAKNET_HELPER:END===== */
+/* =====VERCHECK:START===== */
+/* 版本自检：ver.json 只有几十字节，弱网也能拿到。
+   若云端版本比本页新，说明用户看到的是浏览器缓存的旧版，直接给一键更新入口。
+   ⚠️ 旧版本身没有这段代码，所以本次升级仍需要用户打开带 ?v= 的新链接或点按钮。 */
+var BUILD_ID="20261112-1705";
+function forceUpdate(){
+  try{location.replace(location.pathname+"?v="+Date.now())}
+  catch(e){location.reload()}
+}
+function checkBuild(){
+  fetchTO("ver.json?t="+Date.now(),6000).then(function(r){return r.json()}).then(function(v){
+    if(!v||!v.build||v.build===BUILD_ID)return;
+    if(document.getElementById("buildWarn"))return;
+    var b=document.createElement("div");
+    b.id="buildWarn";b.className="status warnbox";
+    b.innerHTML="⚠️ <b>检测到新版本</b>：你打开的是浏览器缓存的旧页面（"+esc(BUILD_ID)+
+      "），最新为 "+esc(v.build)+"。旧版在弱网下可能一直停在「载入中…」。"+
+      '<button class="btn" onclick="forceUpdate()">点此更新到最新版</button>';
+    var h=document.querySelector("header.hdr");
+    if(h&&h.parentNode)h.parentNode.insertBefore(b,h.nextSibling);
+  }).catch(function(){});
+}
+/* =====VERCHECK:END===== */
 function fetchTO(url,ms){
   return new Promise(function(res,rej){
     var done=false;
@@ -932,7 +956,8 @@ function updateStatus(){
       "<b>"+ST.qn+"</b> 只有效（浏览器直连腾讯，需允许第三方请求）")+
     " · 若失败：换系统浏览器（Safari / Chrome）打开，勿用微信内置 / 无痕模式，关掉「阻止跨站跟踪」。");
   rows.push("<b>⑤ 怎么用</b>：盘中看「一 · 实时行情」的量价与分时量能；收盘后看「二 · 已确认净流入」与历史曲线；"+
-    "资金结构<b>只作观察，不作买卖点</b>；右下「🔄 刷新日报」触发云端重算，需 GitHub Token。");
+    "资金结构<b>只作观察，不作买卖点</b>；右下「🔄 刷新日报」触发云端重算，需 GitHub Token。"+
+    " · 页面版本 <b>"+BUILD_ID+"</b>（若与「一 · 盘中实时行情」标题处不一致，点顶部「强制更新页面」）。");
   $("stlist").innerHTML=rows.map(function(x){return "<li>"+x+"</li>"}).join("");
 }
 /* 状态说明已收进 <details> 抽屉，此函数保留给旧书签/缓存页面调用，做空安全处理 */
@@ -1035,7 +1060,7 @@ async function loadIntraday(force){
   var idxJob=minuteJson("sh000001");
   await Promise.race([
     Promise.all(jobs),
-    new Promise(function(rs){setTimeout(rs,22000)})
+    new Promise(function(rs){setTimeout(rs,16000)})
   ]);
   var res=collected.slice();
   var idxD=null;
@@ -1906,12 +1931,13 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
   }catch(e){}
   wrapTables();
   paintVerdict(v0);
+  try{checkBuild()}catch(e){}
   /* 🔴 实时链路零等待启动：旧版把它排在 await data.json 之后，弱网下明细请求
      要拖满 10 秒超时，行情表就一直停在静态「正在连接实时行情源…」。
      QCFG 先用内嵌代码表初始化，data.json 成功后会覆盖（内容相同）。 */
   try{QCFG=(SNAP.quotes&&SNAP.quotes.length)?SNAP.quotes.slice():QCFG}catch(e){}
   try{loadQuotes(true);scheduleQuotes()}catch(e){}
-  setTimeout(function(){try{loadIntraday(true);intradayLoop()}catch(e){}},2500);
+  setTimeout(function(){try{loadIntraday(true);intradayLoop()}catch(e){}},600);
   // ①b 明细恒可见：轻版数据已内嵌进网页，零请求先渲染一遍。
   //    手机即便一个外部请求都发不出去，KPI 与全部表格也立即有数。
   if(SNAP.lite&&SNAP.lite.kpi){

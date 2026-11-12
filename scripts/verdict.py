@@ -162,7 +162,7 @@ def render_html(v):
                 % len(v["warnings"]))
     return (
         '<section class="verdict %s" id="verdict">\n'
-        '  <div class="vhead"><div class="vlab">今日结论 <span class="vtag">已确认 · 份额口径 T+1</span></div>\n'
+        '  <div class="vhead"><div class="vlab">研判结论 <span class="vtag">已确认 · 份额口径 T+1</span></div>\n'
         '    <div class="vdate">份额数据日 <b>%s</b> · 文件生成 %s</div></div>\n'
         '  <div class="vmain"><div class="vtitle">%s<span>%s</span></div>\n'
         '    <div class="vdesc">%s</div></div>\n'

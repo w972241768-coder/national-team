@@ -132,6 +132,24 @@ footer{margin-top:26px;padding-top:12px;border-top:1px solid var(--line);color:v
 .pbar{display:inline-block;width:48px;height:6px;background:#e8ebf0;border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:6px}
 .pbar i{display:block;height:100%;background:var(--blue);opacity:.85}
 .heatcell{text-align:right;font-variant-numeric:tabular-nums;padding:5px 7px;border-radius:3px;font-size:11.5px}
+/* ===== 近 20 日汇总行：表头下首行常驻，冠军模块高亮 ===== */
+.heatlead{background:#eef3fd;border:1px solid #d5e0f7;border-left:3px solid var(--blue);
+ border-radius:0 6px 6px 0;padding:8px 11px;margin:0 0 10px;font-size:12.5px;line-height:1.85;color:var(--txt)}
+.heatlead b{color:var(--blue);font-weight:700}
+.heatlead .hwin{color:#8a5200;background:#ffe9b8;border-radius:3px;padding:1px 6px;font-weight:700}
+.heatlead .hcav{color:var(--dim);font-weight:400}
+#heat tr.hsum td{background:#eaf0fb;border-top:2px solid #2b5fd9;border-bottom:2px solid #cfdcf4;
+ font-weight:700;color:var(--txt);padding:7px 8px;font-size:12px;text-align:right;white-space:nowrap}
+#heat tr.hsum td:first-child{text-align:left;color:var(--blue)}
+#heat tr.hsum td.hup{color:var(--red)}
+#heat tr.hsum td.hdown{color:var(--green)}
+#heat tr.hsum td.hwin{background:#ffe9b8;color:#8a5200;box-shadow:inset 0 0 0 1px #e8b552}
+#heat tr.hsum td.htot{background:#dfe8fa}
+#heat tr.hsum td small{font-size:10px;font-weight:400;color:var(--dim)}
+@media(max-width:820px){
+ #heat tr.hsum td{font-size:11px;padding:6px 6px}
+ .heatlead{font-size:12px;padding:7px 9px}
+}
 #tip{position:fixed;display:none;z-index:200;background:#fff;border:1px solid #c9cfd8;
   border-radius:4px;padding:4px 9px;font-size:12px;color:var(--txt);pointer-events:none;
   box-shadow:0 2px 8px rgba(28,35,48,.16);white-space:nowrap;font-variant-numeric:tabular-nums}
@@ -303,7 +321,7 @@ h2.pstitle small{display:inline}
   </div>
 </details>
 
-<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 15 秒自动刷新 · 版本 20261112-1705</small></h2>
+<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 15 秒自动刷新 · 版本 20261113-1156</small></h2>
 <div class="note" id="qnote">正在连接实时行情源…</div>
 <!--IDB:START-->
 <div class="panel">
@@ -407,9 +425,14 @@ h2.pstitle small{display:inline}
 <div class="panel">
   <h3>最近 20 个交易日 · 分风格逐日净流入（亿元）</h3>
   <div class="note">红=流入、绿=流出，色深按<b>该风格自身近 20 日绝对值最大者</b>归一（列内可比，跨列不代表金额可比）。
-  月度图颗粒度太粗，这张表用来看「最近这波钱具体是哪几天、进了哪个风格」。</div>
+  月度图颗粒度太粗，这张表用来看「最近这波钱具体是哪几天、进了哪个风格」。
+  <b>表格第一行固定为近 20 日各风格合计</b>，金色底一眼看出哪个模块流入最多。</div>
+  <div class="heatlead" id="heatLead"><b>一眼看懂</b>：近 20 日各风格合计见表格首行，<span class="hwin">金色底</span>为流入最多的模块。
+  <br><span class="hcav">只描述资金去向，<b>不构成买卖信号</b>；11.84 年全样本已证伪用资金流择时。</span></div>
   <div class="scroll"><table id="heat">
-    <thead><tr id="heatHead"></tr></thead><tbody id="heatBody"></tbody></table></div>
+    <thead><tr id="heatHead"></tr></thead>
+    <tbody id="heatBody"><tr class="hsum"><td>近20日合计</td><td colspan="8" class="dim" style="text-align:left;font-weight:400">汇总计算中…（页面载入后自动填充）</td></tr></tbody></table></div>
+  <div class="note" id="heatFoot" style="margin:9px 0 0">首行按上表 20 行逐日值累加；最后一列为全部风格合计。</div>
 </div>
 
 <!--PS:START-->
@@ -699,7 +722,7 @@ function loadQuoteSnap(){
 /* 版本自检：ver.json 只有几十字节，弱网也能拿到。
    若云端版本比本页新，说明用户看到的是浏览器缓存的旧版，直接给一键更新入口。
    ⚠️ 旧版本身没有这段代码，所以本次升级仍需要用户打开带 ?v= 的新链接或点按钮。 */
-var BUILD_ID="20261112-1705";
+var BUILD_ID="20261113-1156";
 function forceUpdate(){
   try{location.replace(location.pathname+"?v="+Date.now())}
   catch(e){location.reload()}
@@ -1666,20 +1689,50 @@ function renderPeriodStyle(D){
 /* =====PS_JS:END===== */
 /* ====================== 渲染 ====================== */
 function renderHeat(D){
-  var S=D.styles, rows=D.daily_style.slice().reverse();   // 最近一日在最上
+  var S=D.styles, rows=(D.daily_style||[]).slice().reverse();   // 最近一日在最上
+  if(!S||!S.length||!rows.length)return;
   var mx={};
   S.forEach(function(s){mx[s]=Math.max.apply(null,rows.map(function(r){return Math.abs(r.by[s])}))||1});
   $("heatHead").innerHTML="<th>日期</th>"+
     S.map(function(s){return '<th class="n">'+s+"</th>"}).join("")+'<th class="n">当日合计</th>';
-  $("heatBody").innerHTML=rows.map(function(r){
-    var tot=S.reduce(function(a,s){return a+r.by[s]},0);
+  /* ===== 近 20 日汇总：表头下第一行，直接由上表逐日值累加，口径与表内数字完全一致 ===== */
+  var sum={},tot=0,win=null,winV=-Infinity;
+  S.forEach(function(s){
+    sum[s]=rows.reduce(function(a,r){return a+(Number(r.by[s])||0)},0);
+    tot+=sum[s];
+    if(sum[s]>winV){winV=sum[s];win=s}
+  });
+  var allOut=S.every(function(s){return sum[s]<0});
+  var rank=S.slice().sort(function(a,b){return sum[b]-sum[a]});
+  var lead=$("heatLead");
+  if(lead){
+    var txt=allOut
+      ? "近 20 日 <b>"+S.length+" 类全部净赎回</b>，合计 <b>"+f(tot,1,true)+" 亿</b>；"+
+        "流出最少的是 <span class='hwin'>"+esc(win)+" "+f(winV,1,true)+" 亿</span>（金色底）。"
+      : "近 20 日流入最多：<span class='hwin'>"+esc(win)+" "+f(winV,1,true)+" 亿</span>，"+
+        "占 "+S.length+" 类合计 <b>"+(tot>0?f(winV/tot*100,1):"--")+"%</b>；"+S.length+" 类合计 <b>"+f(tot,1,true)+" 亿</b>，"+
+        "次高 "+esc(rank[1]||"—")+" "+f(sum[rank[1]]||0,1,true)+" 亿。";
+    lead.innerHTML="<b>一眼看懂</b>："+txt+
+      "<br><span class='hcav'>只描述资金去向，<b>不构成买卖信号</b>；11.84 年全样本已证伪用资金流择时。</span>";
+  }
+  var sumRow="<tr class='hsum'><td>近20日合计</td>"+
+    S.map(function(s){
+      var cl=s===win?"hwin":(sum[s]>=0?"hup":"hdown");
+      return "<td class='"+cl+"'>"+f(sum[s],1,true)+(s===win&&!allOut?" ★":"")+"</td>";
+    }).join("")+"<td class='htot'>"+f(tot,1,true)+" <small>(20日)</small></td></tr>";
+  $("heatBody").innerHTML=sumRow+rows.map(function(r){
+    var t=S.reduce(function(a,s){return a+r.by[s]},0);
     return "<tr><td class='dim'>"+ds8(r.d)+"</td>"+S.map(function(s){
-      var v=r.by[s],t=Math.min(1,Math.abs(v)/mx[s]);
-      var bg=v>=0?"rgba(217,54,48,"+(0.08+0.55*t).toFixed(2)+")"
-                 :"rgba(10,160,110,"+(0.08+0.55*t).toFixed(2)+")";
+      var v=r.by[s],q=Math.min(1,Math.abs(v)/mx[s]);
+      var bg=v>=0?"rgba(217,54,48,"+(0.08+0.55*q).toFixed(2)+")"
+                 :"rgba(10,160,110,"+(0.08+0.55*q).toFixed(2)+")";
       return "<td class='heatcell' style='background:"+bg+"'>"+f(v,1,true)+"</td>";
-    }).join("")+"<td class='n'>"+f(tot,1,true)+"</td></tr>";
+    }).join("")+"<td class='n'>"+f(t,1,true)+"</td></tr>";
   }).join("");
+  var ft=$("heatFoot");
+  if(ft)ft.innerHTML="首行按上表 "+rows.length+" 行显示值累加（逐日数字已四舍五入，与后台精确口径可能有小幅尾差），"+
+    "区间 <b>"+ds8(rows[rows.length-1].d)+" ~ "+ds8(rows[0].d)+"</b>；"+
+    "★ / 金色底 = 近 20 日净流入最多的模块，最后一列为全部 "+S.length+" 类合计。";
 }
 /* ===== 历史曲线：内嵌快照同步渲染 + 云端 history.json 异步覆盖 =====
    全历史紧凑序列已内嵌进 index.html（约 80 KB，零请求即可缩放）；

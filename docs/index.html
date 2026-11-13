@@ -132,6 +132,28 @@ footer{margin-top:26px;padding-top:12px;border-top:1px solid var(--line);color:v
 .pbar{display:inline-block;width:48px;height:6px;background:#e8ebf0;border-radius:3px;overflow:hidden;vertical-align:middle;margin-right:6px}
 .pbar i{display:block;height:100%;background:var(--blue);opacity:.85}
 .heatcell{text-align:right;font-variant-numeric:tabular-nums;padding:5px 7px;border-radius:3px;font-size:11.5px}
+/* ===== 行情明细表胶囊折叠 ===== */
+.qchipbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 0}
+.qchip{display:inline-flex;align-items:center;gap:7px;background:#e9eefb;color:var(--blue);
+ border:1px solid #cfdaf5;border-radius:999px;padding:7px 15px;cursor:pointer;font-size:12.5px;
+ font-family:inherit;line-height:1.5;transition:background .15s}
+.qchip:hover{background:#dbe5fa}
+.qchip.open{background:#dbe5fa;border-color:#b6c8ef}
+.qchip b{font-weight:600}
+.qchip .qcaret{font-size:11px;width:10px;display:inline-block}
+.qchip .qchipsub{color:var(--dim);font-weight:400;font-size:11.5px}
+/* ===== 模块研判 · 参考建议 ===== */
+.modana{background:#f7f9fd;border:1px solid #dfe6f2;border-left:3px solid var(--blue);
+ border-radius:0 7px 7px 0;padding:10px 13px;margin:10px 0 0;font-size:12.5px;
+ line-height:1.9;color:var(--txt)}
+.modana .anahead{font-weight:700;color:var(--blue);font-size:12.5px;margin-bottom:4px}
+.modana .anabody b{color:var(--txt)}
+.modana .cav{color:var(--dim);font-weight:400}
+.modana .rule{color:#8a5200}
+@media(max-width:820px){
+ .qchip{padding:6px 12px;font-size:12px}.qchip .qchipsub{font-size:11px}
+ .modana{font-size:12px;padding:9px 10px}
+}
 /* ===== 近 20 日汇总行：表头下首行常驻，冠军模块高亮 ===== */
 .heatlead{background:#eef3fd;border:1px solid #d5e0f7;border-left:3px solid var(--blue);
  border-radius:0 6px 6px 0;padding:8px 11px;margin:0 0 10px;font-size:12.5px;line-height:1.85;color:var(--txt)}
@@ -282,7 +304,7 @@ h2.pstitle small{display:inline}
     <span class="tag"><span class="dot" id="dot"></span> <span id="mkt">状态检测中</span></span>
     <span class="tag">行情 <b id="qtime">--:--:--</b></span>
     <span class="tag" id="cd">--</span>
-    <button class="btn" onclick="loadQuotes(true)">立即刷新</button>
+    <button class="btn" onclick="loadQuotes(true)">手动刷新行情</button>
     <button class="btn" onclick="forceUpdate()">强制更新页面</button>
   </div>
 </header>
@@ -321,7 +343,7 @@ h2.pstitle small{display:inline}
   </div>
 </details>
 
-<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 15 秒自动刷新 · 版本 20261113-1156</small></h2>
+<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 15 秒自动刷新 · 收盘后手动刷新 · 版本 20261113-1627</small></h2>
 <div class="note" id="qnote">正在连接实时行情源…</div>
 <!--IDB:START-->
 <div class="panel">
@@ -334,6 +356,7 @@ h2.pstitle small{display:inline}
     <div class="idbtns">
       <button class="btn zbtn pri" id="idBtnIn" onclick="setIntradayMode('in')">16 只篮内</button>
       <button class="btn zbtn" id="idBtnAll" onclick="setIntradayMode('all')">26 只全口径</button>
+      <button class="btn zbtn" onclick="loadIntraday(true)">手动刷新分时</button>
     </div>
   </div>
   <div id="intraday"><div class="note dim" id="idbPh">⏳ 正在加载分钟分时…（弱网可能需 10~30 秒；已确认数据、结论与历史曲线不受影响）</div></div>
@@ -348,11 +371,22 @@ h2.pstitle small{display:inline}
     两者不可与份额口径混用。图中已过滤 15:01~15:30 盘后延续点，并按统一时间轴前向填充；
     底部浅蓝带是累计成交额缩略曲线；横轴按 09:30~15:00 全天 240 分钟等比铺开，
     盘中未走完的时段留白（与参考图一致），午休压缩为 1 分钟宽。
-    分时源偶发整体故障时保留上一次快照、5 分钟后自动重试。</div></details>
+    分时源盘中故障时会退避重试；<b>收盘 / 休市后不再自动刷新</b>，需要更新请点「手动刷新分时」或「重试分时」。</div></details>
   </div>
 </div>
 <!--IDB:END-->
-<div class="panel" style="padding:0">
+<div class="modana" id="liveAna">
+  <div class="anahead">本模块研判 · 参考建议 <span class="cav">（随分时与行情刷新更新）</span></div>
+  <div class="anabody" id="liveAnaBody">分时数据载入后自动生成当日量价解读；已确认净流入、结论与历史曲线不受实时链路影响。</div>
+</div>
+<div class="qchipbar">
+  <button class="qchip" id="qchip" onclick="toggleQuotes()" aria-expanded="false">
+    <span class="qcaret" id="qcaret">▾</span><b>26 只行情明细表</b>
+    <span class="qchipsub" id="qchipsub">默认收起 · 点开看逐只价格与成交额</span>
+  </button>
+  <button class="btn zbtn" onclick="loadQuotes(true)">手动刷新行情</button>
+</div>
+<div class="panel qtable" id="qtable" style="padding:0;display:none">
   <div class="scroll"><table id="qt"><thead><tr>
     <th>标的</th><th>代码</th><th class="n">现价</th><th class="n">涨跌幅</th>
     <th class="n">成交额(亿)</th><th class="n">占比</th><th class="n">换手</th><th class="n">规模(亿)</th><th>快照时间</th>
@@ -379,7 +413,8 @@ h2.pstitle small{display:inline}
       <button class="btn" id="zreset">复位</button>
     </div>
   </div>
-  <div class="zhint">滚轮缩放 · 按住拖拽平移 · 手机双指捏合；下方滑块可拖动选区与两端手柄。
+  <div class="zhint">滚轮缩放 · <b>以最新日期（最右侧）为固定锚点</b>，只向左伸缩窗口，
+    方便对比「最新 vs 之前」；要看历史某一段请按住拖拽或用下方滑块 · 手机双指捏合同样右端锚定。
     <b>份额数据 T+1 公布，图上「同日」关系是统计关联，不是可交易信号。</b></div>
 
   <div class="zhist"><b>图 A · 当日净流入与上证综指</b>　左轴=净流入（亿元，对称对数）；右轴标注窗口内上证最高/最低。</div>
@@ -400,6 +435,10 @@ h2.pstitle small{display:inline}
       <div class="rsel" id="rsel"><i class="rh left"></i><i class="rh right"></i></div></div>
     <div class="rlabels"><span id="rstart">—</span><span id="rend">—</span></div>
   </div>
+</div>
+<div class="modana" id="histAna">
+  <div class="anahead">当前窗口研判 · 参考建议 <span class="cav">（随缩放 / 拖拽实时更新）</span></div>
+  <div class="anabody" id="histAnaBody">历史曲线载入后，按当前显示窗口自动生成资金与指数解读及条件式参考建议。</div>
 </div>
 <div class="note"><b>这两张图该怎么读</b>：11.84 年全样本检验显示，净流入/流出对上证指数
   <b>没有稳定、可交易的预测力</b>；唯一稳定的方向是「今日指数涨跌 → 明日申赎」的滞后反应。
@@ -579,7 +618,7 @@ sqlId <code>COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L</code>）、新浪财经�
 腾讯财经实时快照（<code>qt.gtimg.cn</code>，浏览器直连）。<br>
 <b>口径</b>：净流入 = Σ(当日份额变动 × 当日价格)；强度 = 净流入 / 篮子规模；
 滚动分位 = 当日净流入在过去 250 个交易日中的百分位。<b>T 日份额于次日公布，故盘中净流入不可得。</b><br>
-<b>更新</b>：盘中实时行情由浏览器每 15 秒自行刷新；份额与全部统计由 GitHub Actions 于工作日盘后重算并写回本页数据文件。<br>
+<b>更新</b>：盘中实时行情与分时由浏览器自动刷新；<b>收盘 / 休市后停止一切自动刷新</b>，需要更新请点「手动刷新行情 / 手动刷新分时」；份额与全部统计由 GitHub Actions 于工作日盘后重算并写回本页数据文件。<br>
 <b>免责</b>：本页为公开数据研究，不构成投资建议，不承诺任何收益或准确率。所有前瞻收益统计基于历史样本，
   样本存在重叠与选择性，不能外推为未来表现。国家队资金亦可能通过其他渠道入市，本指标不覆盖。<br>
 <span id="build"></span>
@@ -605,7 +644,7 @@ sqlId <code>COMMON_SSE_ZQPZ_ETFZL_XXPL_ETFGM_SEARCH_L</code>）、新浪财经�
 
 <script>
 /* ====================== 全局 ====================== */
-var D=null, QCFG=[], TIMER=null, TICK=null, LASTQ=0;
+var D=null, QCFG=[], TIMER=null, TICK=null, LASTQ=0, QSTAT={};
 /* 移动端（iOS Safari / 微信 X5 / 安卓 WebView）对第三方域的 fetch 限制更严，
    默认直接走 <script> 注入通道（腾讯返回 v_shXXXXXX="..." 全局变量，天然不受 CORS 约束）；
    桌面仍先走 fetch。两条通道互为备份，并把成功的通道记进 localStorage。 */
@@ -722,7 +761,7 @@ function loadQuoteSnap(){
 /* 版本自检：ver.json 只有几十字节，弱网也能拿到。
    若云端版本比本页新，说明用户看到的是浏览器缓存的旧版，直接给一键更新入口。
    ⚠️ 旧版本身没有这段代码，所以本次升级仍需要用户打开带 ?v= 的新链接或点按钮。 */
-var BUILD_ID="20261113-1156";
+var BUILD_ID="20261113-1627";
 function forceUpdate(){
   try{location.replace(location.pathname+"?v="+Date.now())}
   catch(e){location.reload()}
@@ -893,6 +932,9 @@ function renderQuotes(q){
     benchTxt+" · 占比条按全场最大单只成交额归一 · 数据源 腾讯财经（浏览器直连）"+
     (b?"<br><span class='dim'>成交额基准："+esc(b.method)+
        "；仅作放量参照，不当作精确成交额。</span>":"");
+  QSTAT={valid:valid,up:up,down:down,totAmt:totAmt};
+  var chip=$("qchipsub");
+  if(chip)chip.textContent=valid+" 只有效 · 涨 "+up+" / 跌 "+down+" · 合计 "+f(totAmt,1)+" 亿";
 }
 async function loadQuotes(manual){
   if(!QCFG.length)return;
@@ -945,7 +987,8 @@ async function loadQuotes(manual){
   var n=isTradingNow();
   $("dot").className="dot "+(n?"on":"off");
   $("mkt").textContent=n?"盘中":"已收盘 / 休市";
-  $("qnote").innerHTML="按<b>北京时间</b>判断：盘中每 <b>15 秒</b>自动刷新，收盘后每 <b>5 分钟</b>刷新一次。"+
+  $("qnote").innerHTML="按<b>北京时间</b>判断（盘中 9:15~11:30 / 13:00~15:05）：<b>每 15 秒自动刷新</b>；"+
+    "<b>收盘 / 休市后不再自动刷新</b>，需要更新请点「手动刷新行情」。"+
     "当前通道：<code>"+how+"</code>。行情为真实时数据；<b>当日净流入仍需等份额次日公布</b>。"+
     (manual?" <span class='good'>已手动刷新</span>":"");
   updateStatus();
@@ -969,7 +1012,7 @@ function updateStatus(){
   rows.push("<b>① 两个日期别混</b>：<b>"+esc(ST.asof)+"</b> = 份额数据日（T+1 公布，必然是上一交易日）；<b>"+esc(ST.built)+"</b> = 文件生成时间（今天跑的）。两者不同属正常 · 已确认值 <b>"+f(ST.nf,1,true)+" 亿 / 规模 "+f(ST.aum,0)+" 亿</b> · 数据源 <b>"+esc(srcName[ST.source]||ST.source)+"</b> · "+
     (bad?'<span class="warn">'+probe+"；"+ST.warn.length+" 条取数告警（仅表示今日增量未取到，不影响上方已确认值）</span>":probe));
   rows.push("<b>② 时间</b>：北京时间 <b>"+bjClock()+"</b>（"+
-    (trading?"盘中 · 15 秒刷新":"已收盘 / 休市 · 5 分钟刷新")+
+    (trading?"盘中 · 15 秒自动刷新":"已收盘 / 休市 · 不自动刷新，请手动点刷新")+
     "） · 你的设备 "+tzName()+" <b>"+localClock()+"</b> · 行情快照 <b>"+esc(ST.qtime)+
     "</b>（收盘后定格不动属正常，不是手机故障）");
   rows.push("<b>③ 铁律</b>：上交所份额 <b>T 日次日</b>才公布 ⇒ <b>盘中永远算不出当日净流入</b>；"+
@@ -991,18 +1034,22 @@ function toggleStatus(){
   var fl=$("stflag"); if(fl)fl.textContent=hidden?"收起":"展开";
 }
 function scheduleQuotes(){
-  // 盘中 15 秒、盘后 5 分钟；定时器仍每 15 秒醒一次，只是非盘中时按 gap 决定是否真正发请求
+  /* 🔴 收盘 / 休市后不再发任何自动请求：用户明确要求「收盘后自己点刷新」。
+     TICK 仍每秒跑，只用于显示状态与北京时间，不触发网络。 */
   if(TIMER)clearInterval(TIMER);
   TIMER=setInterval(function(){
-    var gap=isTradingNow()?15000:300000;
-    if(Date.now()-LASTQ>=gap)loadQuotes(false);
+    if(!isTradingNow())return;
+    if(Date.now()-LASTQ>=15000)loadQuotes(false);
   },15000);
   if(TICK)clearInterval(TICK);
   TICK=setInterval(function(){
-    var trading=isTradingNow(),gap=trading?15000:300000;
-    var s=Math.max(0,Math.round((gap-(Date.now()-LASTQ))/1000));
-    $("cd").textContent=(trading?"盘中 ":"收盘 ")+
-      (s>=60?Math.ceil(s/60)+"min":s+"s")+"后刷新";
+    var trading=isTradingNow();
+    if(!trading){
+      $("cd").textContent="已收盘 · 手动刷新";
+    }else{
+      var s=Math.max(0,Math.round((15000-(Date.now()-LASTQ))/1000));
+      $("cd").textContent="盘中 "+s+"s 后刷新";
+    }
     if(new Date().getSeconds()===0)updateStatus();
   },1000);
 }
@@ -1107,10 +1154,10 @@ async function loadIntraday(force){
     INTRADAY_FAILS++;
     var stale=INTRADAY_LAST_HTML
       ? '<div class="err" style="margin:0 0 6px">⚠️ 分时源连接超时或网络过慢（取到 '+etfs.length+"/"+list.length+
-        " 只），当前显示 "+esc(INTRADAY_LAST_AT)+" 的上一次快照（<b>非实时</b>）；5 分钟后自动重试。</div>"+
+        " 只），当前显示 "+esc(INTRADAY_LAST_AT)+" 的上一次快照（<b>非实时</b>）；盘中会自动退避重试，收盘后请点右侧按钮手动重试。</div>"+
         INTRADAY_LAST_HTML+'<button class="btn" onclick="loadIntraday(true)">重试分时</button>'
       : '<div class="err">⚠️ 分时源连接超时或网络过慢（取到 '+etfs.length+"/"+list.length+
-        " 只）。<b>已确认的净流入、结论、历史数据均不受影响</b>，可稍后自动重试或点右侧按钮。</div>"+
+        " 只）。<b>已确认的净流入、结论、历史数据均不受影响</b>，收盘后请点右侧按钮手动重试。</div>"+
         '<button class="btn" onclick="loadIntraday(true)">重试分时</button>';
     $("intraday").innerHTML=stale;return;
   }
@@ -1250,6 +1297,8 @@ function paintIntraday(){
   INTRADAY_LAST_AT=new Date(Date.now()+(8+new Date().getTimezoneOffset()/60)*3600000)
     .toTimeString().slice(0,5);
   $("idPrevLab").textContent="昨收 "+(isFinite(pv)?f(pv,2):"--");
+  try{paintLiveAnalysis({bars:bars,cum:last.cum,chg:chg,lastIdx:lastIdx,
+    at:last.t,hasIdx:hasIdx,ok:IDB.ok,total:IDB.total})}catch(e){}
 }
 /* 视口变化时重绘（手机把 viewBox 收窄到 620 并放大刻度字号） */
 window.addEventListener("resize",function(){
@@ -1257,10 +1306,88 @@ window.addEventListener("resize",function(){
   clearTimeout(IDB._rt);
   IDB._rt=setTimeout(function(){paintIntraday()},180);
 });
+/* ===== 行情明细表胶囊折叠：默认收起，柱状图常显 ===== */
+function toggleQuotes(){
+  var t=$("qtable"),b=$("qchip"),c=$("qcaret");
+  if(!t)return;
+  var open=t.style.display!=="none";
+  t.style.display=open?"none":"block";
+  if(b){b.setAttribute("aria-expanded",open?"false":"true");b.classList.toggle("open",!open)}
+  if(c)c.textContent=open?"▾":"▴";
+}
+/* ===== 模块一研判：只用已取到的分时量能 + 行情快照，缺数据如实写「暂不可用」 ===== */
+function paintLiveAnalysis(s){
+  var el=$("liveAnaBody"); if(!el)return;
+  var trading=isTradingNow(),bars=s.bars||[],n=bars.length;
+  var k=Math.min(30,Math.floor(n/3)),ratio=null;
+  if(n>=20&&k>0){
+    var tail=bars.slice(-k),head=bars.slice(0,-k);
+    var ta=tail.reduce(function(a,x){return a+x.inc},0)/tail.length;
+    var ha=head.reduce(function(a,x){return a+x.inc},0)/Math.max(1,head.length);
+    ratio=ha>0?ta/ha:null;
+  }
+  var peak=null;bars.forEach(function(x){if(!peak||x.inc>peak.inc)peak=x});
+  var qs=QSTAT||{};
+  var qtxt=qs.valid
+    ? "行情快照 <b>"+qs.valid+" 只</b>有效，上涨 <b class='up'>"+qs.up+"</b> / 下跌 <b class='down'>"+qs.down+
+      "</b>，合计成交额 <b>"+f(qs.totAmt,1)+" 亿</b>。"
+    : "实时行情快照暂不可用，以下只依据分时量能。";
+  var l1="<b>盘面</b>：截至 <b>"+hhmm(s.at)+"</b>"+(trading?"（盘中）":"（已收盘 / 休市，分时定格）")+
+    "，"+(s.hasIdx&&s.chg!==null?"上证 <b>"+f(s.lastIdx,2)+"</b>（相对昨收 <b>"+f(s.chg,2,true)+"%</b>）":"指数分时暂不可用")+
+    "；"+(IDB_MODE==="in"?"16 只篮内":"26 只全口径")+"分钟成交额累计 <b>"+f(s.cum,1)+" 亿</b>"+
+    (ratio!==null?"，最近 "+k+" 分钟均量为此前的 <b>"+f(ratio,2)+" 倍</b>":"")+
+    (peak?"，单分钟峰值 <b>"+f(peak.inc,2)+" 亿</b>（"+hhmm(peak.t)+"）":"")+"。"+qtxt;
+  var tone;
+  if(ratio!==null&&ratio>=1.15&&s.chg!==null&&s.chg>0)tone="尾段放量且指数在昨收上方，量价同向偏强";
+  else if(ratio!==null&&ratio>=1.15&&s.chg!==null&&s.chg<=0)tone="尾段放量但指数未站上昨收，更像托底或分歧，不宜当作进场确认";
+  else if(ratio!==null&&ratio<=0.8&&s.chg!==null&&s.chg>0)tone="尾段缩量而指数上行，追价意愿有限";
+  else if(!trading)tone="已收盘，量能为当日全天定格值，只用于复盘当日节奏";
+  else tone="量能相对平稳，暂无一边倒的多空动能";
+  var l2="<b>解读</b>："+tone+"。<span class='cav'>分时柱是二级市场成交额逐分钟差分，<b>≠ 净申购</b>；"+
+    "当日净流入须等上交所份额 T+1 公布，盘中算不出。</span>";
+  var l3="<b>参考建议（条件式）</b>："+
+    (trading
+      ? "若后续分钟成交额继续放大且上证站稳昨收上方，则视为量能配合、可维持现有敞口观察；若放量而指数走弱或尾段明显缩量，则视为分歧加大，仅观察不追。"
+      : "下一交易日若开盘 30 分钟量能延续、且指数站上前收，则视为动能延续、维持观察；若缩量或低开后量能不回补，则按顶部「研判结论」卡执行，不因今日分时金额加减仓。")+
+    "<br><span class='rule'>以上只作结构观察，<b>不构成买卖点</b>；11.84 年全样本已证伪用资金流择时，不承诺任何收益或准确率。</span>";
+  el.innerHTML=l1+"<br>"+l2+"<br>"+l3;
+}
+/* ===== 模块三研判：按当前缩放窗口实时重算，缩放/拖拽后自动更新 ===== */
+function paintHistAnalysis(R){
+  var el=$("histAnaBody"); if(!el||!R.length)return;
+  var n=HIST.rows.length,sum=0,up=0,dn=0,mx=R[0],mn=R[0];
+  R.forEach(function(r){
+    sum+=r.nf; if(r.nf>0)up++;else if(r.nf<0)dn++;
+    if(r.nf>mx.nf)mx=r; if(r.nf<mn.nf)mn=r;
+  });
+  var cS=HIST.i0>0?HIST.cum[HIST.i0-1]:0,cE=HIST.cum[HIST.i1-1];
+  var i0=R[0].idx,i1=R[R.length-1].idx;
+  var ichg=(isFinite(i0)&&isFinite(i1)&&i0>0)?(i1/i0-1)*100:null;
+  var same=ichg===null?null:((sum>=0&&ichg>=0)||(sum<0&&ichg<0));
+  var atLatest=HIST.i1>=n;
+  var l1="<b>当前窗口</b>：<b>"+ds8(R[0].d)+" ~ "+ds8(R[R.length-1].d)+"</b>（"+R.length+
+    " 个交易日）净流入合计 <b>"+f(sum,0,true)+" 亿</b>，流入 <b class='up'>"+up+"</b> 天 / 流出 <b class='down'>"+dn+
+    "</b> 天；最大单日 <b>"+f(mx.nf,1,true)+" 亿</b>（"+ds8(mx.d)+"）、最大单日赎回 <b>"+f(mn.nf,1,true)+" 亿</b>（"+ds8(mn.d)+
+    "）。累计曲线窗口内 <b>"+f(cE-cS,0,true)+" 亿</b>（"+f(cS,0)+" → "+f(cE,0)+" 亿）"+
+    (ichg!==null?"，同期上证 "+f(i0,2)+" → "+f(i1,2)+"（<b>"+f(ichg,2,true)+"%</b>）":"")+"。";
+  var rel=same===null?"指数序列缺失，不做同向 / 背离判断":(same?"资金与指数<b>同向</b>":"资金与指数<b>背离</b>");
+  var l2="<b>解读</b>：窗口内"+rel+"。但这是<b>同期描述</b>而非领先关系：11.84 年样本里净流入对指数"+
+    "没有稳定、可交易的预测力，唯一稳定的是「今日指数涨跌 → 明日申赎」的 1 日滞后，<b>不能反过来当买入信号</b>。"+
+    (atLatest?"":" <span class='warn'>当前窗口不含最新数据，操作判断请以顶部「研判结论」卡为准。</span>");
+  var l3="<b>参考建议（条件式）</b>：若后续份额公布日全宽基净流入重回 <b>+204 亿</b>以上、且沪深300 同步转正，"+
+    "则视为资金再度回补、可维持现有敞口观察；否则仅把上表当作资金结构描述，"+
+    "<b>不因窗口内金额或单日数值加减仓</b>。<br><span class='rule'>只作观察、不作买卖点；不承诺任何收益或准确率。</span>";
+  el.innerHTML=l1+"<br>"+l2+"<br>"+l3;
+}
 /* =====IDB_JS:END===== */
+
 /* 成功 60 秒后再刷；分时源故障时退避到 5 分钟，避免反复打接口刷屏 */
 function intradayLoop(){
+  /* 收盘 / 休市后整个循环终止：不再有 60 秒轮询，也不再有失败后的 5 分钟退避。
+     需要更新分时请点「手动刷新分时」或「重试分时」。 */
+  if(!isTradingNow())return;
   setTimeout(function(){
+    if(!isTradingNow())return;
     Promise.resolve(loadIntraday(false)).then(intradayLoop);
   },INTRADAY_FAILS?300000:60000);
 }
@@ -1422,6 +1549,7 @@ function paintHist(){
   var a=R[0].d,b=R[R.length-1].d;
   $("winlabel").textContent=ds8(a)+" ~ "+ds8(b)+" · "+R.length+" 个交易日";
   paintRange();
+  try{paintHistAnalysis(R)}catch(e){}
 }
 function clearPreset(){
   document.querySelectorAll(".zbtn").forEach(function(b){b.classList.remove("pri")});
@@ -1441,12 +1569,19 @@ function applyPreset(y,btn){
   HIST.touched=false;
   document.querySelectorAll(".zbtn").forEach(function(b){b.classList.toggle("pri",b===btn)});
 }
-function zoomAt(t,factor){
+function zoomAt(t,factor,rightAnchor){
   var n=HIST.rows.length,span=HIST.i1-HIST.i0;
   var ns=Math.max(HIST.minBars,Math.min(n,Math.round(span*factor)));
-  var anchor=HIST.i0+t*span;
-  var a=Math.round(anchor-t*ns);
-  a=Math.max(0,Math.min(n-ns,a));
+  var a;
+  if(rightAnchor){
+    /* 🔴 右端恒为「最新已确认份额日」，只改左端 ⇒ 永远是「最新 vs 之前」，
+       不再随鼠标 / 手指位置把窗口缩到中间某一段。 */
+    a=Math.max(0,n-ns);
+  }else{
+    var anchor=HIST.i0+t*span;
+    a=Math.round(anchor-t*ns);
+    a=Math.max(0,Math.min(n-ns,a));
+  }
   setWindow(a,a+ns,true);
 }
 function setHistory(rows,src){
@@ -1511,9 +1646,8 @@ function bindBox(box,which){
   box.addEventListener("wheel",function(e){
     if(!HIST.rows.length)return;
     e.preventDefault();
-    var rect=box.getBoundingClientRect();
-    var t=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
-    zoomAt(t,e.deltaY>0?1.18:1/1.18);
+    /* t 传 1 但右端锚定模式下不参与计算：滚轮只看缩放倍率 */
+    zoomAt(1,e.deltaY>0?1.18:1/1.18,true);
   },{passive:false});
   box.addEventListener("touchstart",function(e){
     if(e.touches.length===2){
@@ -1526,7 +1660,7 @@ function bindBox(box,which){
   box.addEventListener("touchmove",function(e){
     if(e.touches.length===2&&pinch){
       var d=Math.abs(e.touches[0].clientX-e.touches[1].clientX);
-      if(pinch.d>10&&d>10)zoomAt(pinch.t,pinch.d/d);
+      if(pinch.d>10&&d>10)zoomAt(pinch.t,pinch.d/d,true);
       pinch.d=d;
       e.preventDefault();
     }
@@ -1989,7 +2123,7 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
      要拖满 10 秒超时，行情表就一直停在静态「正在连接实时行情源…」。
      QCFG 先用内嵌代码表初始化，data.json 成功后会覆盖（内容相同）。 */
   try{QCFG=(SNAP.quotes&&SNAP.quotes.length)?SNAP.quotes.slice():QCFG}catch(e){}
-  try{loadQuotes(true);scheduleQuotes()}catch(e){}
+  try{loadQuotes(false);scheduleQuotes()}catch(e){}
   setTimeout(function(){try{loadIntraday(true);intradayLoop()}catch(e){}},600);
   // ①b 明细恒可见：轻版数据已内嵌进网页，零请求先渲染一遍。
   //    手机即便一个外部请求都发不出去，KPI 与全部表格也立即有数。

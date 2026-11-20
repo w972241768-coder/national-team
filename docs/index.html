@@ -353,7 +353,7 @@ h2.pstitle small{display:inline}
   </div>
 </details>
 
-<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 15 秒自动刷新 · 收盘后手动刷新 · 版本 20261120-2207</small></h2>
+<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 15 秒自动刷新 · 收盘后手动刷新 · 版本 20261120-2209</small></h2>
 <div class="note" id="qnote">正在连接实时行情源…</div>
 <!--IDB:START-->
 <div class="panel">
@@ -426,7 +426,7 @@ h2.pstitle small{display:inline}
   <div class="zhint">滚轮缩放 · <b>以最新日期（最右侧）为固定锚点</b>，只向左伸缩窗口，
     方便对比「最新 vs 之前」；要看历史某一段请按住拖拽或用下方滑块 · 手机双指捏合同样右端锚定。
     <b>份额数据 T+1 公布，图上「同日」关系是统计关联，不是可交易信号。</b></div>
-  <div class="amvsrc" id="amvSrc">活跃市值状态带 = 本地 v5 <b>估算</b>序列的多空波段（+4% 建仓 / −2.3% 或破 MA10 离场），<b>仅更新至 2026-10-30</b>，之后显示「未覆盖」不做外推；官方真值为商业数据不予展示。11.84 年对齐检验中与净流入相关系数仅 <b>−0.01</b>、同号率 <b>47.7%</b>，<b>只作市场活跃度背景，不构成买卖点</b>。</div>
+  <div class="amvsrc" id="amvSrc">活跃市值状态带 = 本地 v5 <b>估算</b>序列的多空波段（+4% 建仓 / −2.3% 或破 MA10 离场），<b>仅更新至最近估算日</b>（页面载入后显示具体日期），之后显示「未覆盖」不做外推；官方真值为商业数据不予展示。11.84 年对齐检验中与净流入相关系数仅 <b>−0.01</b>、同号率 <b>47.7%</b>，<b>只作市场活跃度背景，不构成买卖点</b>。</div>
 
   <div class="zhist"><b>图 A · 当日净流入与上证综指</b>　左轴=净流入（亿元，对称对数）；右轴标注窗口内上证最高/最低。</div>
   <div class="legend"><span><i style="background:#d93630"></i>净流入</span>
@@ -773,7 +773,7 @@ function loadQuoteSnap(){
 /* 版本自检：ver.json 只有几十字节，弱网也能拿到。
    若云端版本比本页新，说明用户看到的是浏览器缓存的旧版，直接给一键更新入口。
    ⚠️ 旧版本身没有这段代码，所以本次升级仍需要用户打开带 ?v= 的新链接或点按钮。 */
-var BUILD_ID="20261120-2207";
+var BUILD_ID="20261120-2209";
 function forceUpdate(){
   try{location.replace(location.pathname+"?v="+Date.now())}
   catch(e){location.reload()}
@@ -1372,7 +1372,7 @@ function paintAmvNote(R){
     else if(v===0)s++;else u++});
   var tot=R.length,now=amvStateOf(R[R.length-1].d);
   var cov=tot-u, bp=cov>0?Math.round(b/cov*100):0;
-  var nst=now===1?'多头波段':(now===0?'空仓 / 空头':'未覆盖(估算止于2026-10-30)');
+  var nst=now===1?'多头波段':(now===0?'空仓 / 空头':'未覆盖(估算止于'+amvAsofLabel()+')');
   var dir=bp>=60?'偏多':(bp<=40?'偏空':'中性');
   var txt='<b>活跃市值背景（v5 估算 · 仅参考）</b>：当前窗口 '+tot+' 日，'
     +'多头 '+b+' / 空仓 '+s+' / 未覆盖 '+u+' 日；已覆盖段多头占比 <b>'+bp+'%</b>（'+dir+'），'
@@ -1380,7 +1380,7 @@ function paintAmvNote(R){
   txt+=' <span class="amvwarn">对齐检验：与净流入几乎零相关（r=−0.01、同号率 47.7%），'
     +'活跃市值只反映市场活跃度背景，<b>不能据此判断国家队买卖，也不作买卖点</b>。</span>';
   txt+=' <span class="amvcond">参考读法：若活跃市值处多头且国家队同步净流入，视为环境共振、维持敞口观察；'
-    +'若两者背离（如活跃市值多头但资金净流出），以资金口径与顶部研判为准，不单独加仓。估算序列止于 10-30，末段以顶部研判为准。</span>';
+    +'若两者背离（如活跃市值多头但资金净流出），以资金口径与顶部研判为准，不单独加仓。估算序列止于 '+amvAsofLabel()+'，末段以顶部研判为准。</span>';
   el.innerHTML=txt;
 }
 function paintHistAnalysis(R){
@@ -1439,8 +1439,18 @@ function amvBuildMap(){
   for(var d in HIST.rows){var day=HIST.rows[d].d;
     while(k<AMV.pts.length&&AMV.pts[k][0]<=day){cur=AMV.pts[k][1];k++}
     AMV.map[day]=cur}
+  try{amvRefreshSrc()}catch(e){}
 }
 function amvStateOf(d){return (d>AMV.asof)?-1:(AMV.map[d]===undefined?-1:AMV.map[d])}
+function amvAsofLabel(){var a=AMV.asof||'20261030';return a.slice(0,4)+'-'+a.slice(4,6)+'-'+a.slice(6,8)}
+function amvRefreshSrc(){
+  var el=document.getElementById('amvSrc');if(!el)return;
+  var lab=amvAsofLabel();
+  el.innerHTML='活跃市值状态带 = 本地 v5 <b>估算</b>序列的多空波段（+4% 建仓 / −2.3% 或破 MA10 离场），'
+    +'<b>仅更新至 '+lab+'</b>，之后显示「未覆盖」不做外推；官方真值为商业数据不予展示。'
+    +'11.84 年对齐检验中与净流入相关系数仅 <b>−0.01</b>、同号率 <b>47.7%</b>，'
+    +'<b>只作市场活跃度背景，不构成买卖点</b>。';
+}
 var HIST={rows:[],cum:[],cum300:[],i0:0,i1:0,minBars:60,src:"内嵌",touched:false,ready:false};
 function histNorm(arr){
   // 内嵌紧凑数组 [d,nf,nf300,idx] 与云端对象 rows 统一成最小对象
@@ -1478,7 +1488,7 @@ function amvBand(R,X,y,h,FS){
     var x1=X(i),x2=X(Math.min(n-1,j-1));
     var w=Math.max(0.6,x2-x1+(n>1?(X(1)-X(0))*0.9:0));
     var fill=st===1?'#f3d9d7':(st===0?'#dbe4f3':'#e8eaee');
-    var lab=st===1?'活跃市值·多头波段':(st===0?'活跃市值·空仓/空头':'估算未覆盖(>2026-10-30)');
+    var lab=st===1?'活跃市值·多头波段':(st===0?'活跃市值·空仓/空头':'估算未覆盖(>'+amvAsofLabel()+')');
     o.push('<rect x="'+f(x1,1)+'" y="'+y+'" width="'+f(w,1)+'" height="'+h+
       '" fill="'+fill+'" opacity=".95"><title>'+lab+'</title></rect>');
     i=j;

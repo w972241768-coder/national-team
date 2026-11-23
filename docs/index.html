@@ -362,7 +362,7 @@ h2.pstitle small{display:inline}
   </div>
 </details>
 
-<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 30 分钟自动刷新 · 收盘后仅取一次最终值 · 版本 20261123-1351</small></h2>
+<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 30 分钟自动刷新 · 收盘后仅取一次最终值 · 版本 20261123-1408</small></h2>
 <div class="note" id="qnote">正在连接实时行情源…</div>
 <!--IDB:START-->
 <div class="panel">
@@ -682,7 +682,7 @@ var REPO="w972241768-coder/national-team", WF="update.yml", REF="main";
    ① 用内嵌快照重画一遍，防止用户看到旧缓存页面；
    ② 联网拿到 data.json 后用同一份 verdict 覆盖成云端最新值。
    即使本段完全不执行、所有请求全失败，页面上的静态结论依然可见。 */
-var SNAP={}, NET={data:"待加载",dataMs:0,state:"待加载",src:"内嵌快照",quotes:"待加载",hist:"待加载",amv:"待加载"};
+var SNAP={}, NET={data:"待加载",dataMs:0,state:"待加载",src:"内嵌快照",quotes:"待加载",hist:"待加载",amv:"待加载",zgnb:"待加载"};
 try{SNAP=JSON.parse((document.getElementById("ntSnapshot")||{}).textContent||"{}")}catch(e){SNAP={}}
 function d8(s){s=String(s||"");return s.length===8?s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8):s}
 function paintVerdict(v){
@@ -731,7 +731,8 @@ function toggleDiag(){
     "结论来源："+NET.src+" ｜ 份额数据日："+d8(ST.asof),
     "data.json（轻版）："+NET.data+(NET.dataMs?"（"+NET.dataMs+" ms）":""),
     "history.json（仅曲线）："+NET.hist,
-    "amv_state.json（活跃市值）："+NET.amv+" ｜ 估算截至 "+amvAsofLabel(),
+    "活跃市值实时（zgnb.top）："+NET.zgnb+" ｜ 数值 "+(ZGNB.value?f(ZGNB.value,0):"--")+" 亿 ｜ 状态 "+esc(ZGNB.state||"--"),
+    "amv_state.json（v5 估算兜底）："+NET.amv+" ｜ 估算截至 "+amvAsofLabel(),
     "state.json："+NET.state,
     "实时行情："+(ST.qerr?"失败："+ST.qerr.slice(0,70):(ST.qn>0?"成功":"待加载"))+
       " ｜ 通道 "+ST.qhow+" ｜ 有效 "+ST.qn+" 只",
@@ -787,7 +788,7 @@ function loadQuoteSnap(){
 /* 版本自检：ver.json 只有几十字节，弱网也能拿到。
    若云端版本比本页新，说明用户看到的是浏览器缓存的旧版，直接给一键更新入口。
    ⚠️ 旧版本身没有这段代码，所以本次升级仍需要用户打开带 ?v= 的新链接或点按钮。 */
-var BUILD_ID="20261123-1351";
+var BUILD_ID="20261123-1408";
 function forceUpdate(){
   try{location.replace(location.pathname+"?v="+Date.now())}
   catch(e){location.reload()}
@@ -1467,6 +1468,34 @@ function sy(v){
   if(a<=10)return s*a/10*0.20;
   return s*(0.20+0.80*Math.log10(1+a/10)/Math.log10(1+1000/10));
 }
+/* ===== zgnb.top 实时活跃市值 =====
+   数据源：etf-daily 公开页的 amv_live.json（由 GitHub Actions 每 30 分钟
+   从 zgnb.top 授权接口抓取）。同源 Pages 域、CORS 放行；失败时回落 v5 估算。 */
+var ZGNB={ok:false,pct:null,value:null,state:"",date:"",fetched:"",error:""};
+function loadZgnbLive(){
+  var url="https://w972241768-coder.github.io/etf-daily/amv_live.json?t="+Date.now();
+  return fetchJTO(url,9000).then(function(j){
+    if(!j||j.ok!==true||j.change_pct===null||j.change_pct===undefined)
+      throw new Error(j&&j.error?j.error:"数据无效");
+    var pct=Number(j.change_pct);
+    if(!isFinite(pct))throw new Error("涨跌幅异常");
+    ZGNB.ok=true; ZGNB.pct=pct;
+    ZGNB.value=(j.value===null||j.value===undefined)?null:Number(j.value);
+    ZGNB.state=String(j.state||""); ZGNB.date=String(j.trade_date||j.updated_at||"");
+    ZGNB.fetched=String(j.fetched_at||"");
+    NET.zgnb="实时 "+ZGNB.date+" "+f(ZGNB.pct,2,true)+"%";
+    try{paintVAmv()}catch(e){}
+    try{amvRefreshSrc()}catch(e){}
+    try{paintHist()}catch(e){}   // 状态带当前日标注随实时状态更新
+    try{updateStatus()}catch(e){}
+  }).catch(function(e){
+    ZGNB.ok=false;
+    ZGNB.error=(e&&e.message||"网络受限").slice(0,60);
+    NET.zgnb="失败："+ZGNB.error;
+    try{paintVAmv()}catch(e2){}
+    try{amvRefreshSrc()}catch(e2){}
+  });
+}
 /* ===== 历史曲线：两图共用一个窗口，支持滚轮/拖拽/捏合/滑块缩放 ===== */
 var AMV={asof:'20261030',pts:[],map:{},dod:null,src:null};
 /* 数据源缓存：云端 amv_state.json 拿到后写入 AMV.src；
@@ -1511,14 +1540,27 @@ function amvAsofLabel(){var a=AMV.asof||'20261030';return a.slice(0,4)+'-'+a.sli
 function amvRefreshSrc(){
   var el=document.getElementById('amvSrc');if(!el)return;
   var lab=amvAsofLabel();
-  el.innerHTML='活跃市值状态带 = 本地 v5 <b>估算</b>序列的多空波段（+4% 建仓 / −2.3% 或破 MA10 离场），'
-    +'<b>仅更新至 '+lab+'</b>，之后显示「未覆盖」不做外推；官方真值为商业数据不予展示。'
+  var live=ZGNB.ok
+    ? '顶部涨跌幅为 <b style="color:var(--red)">zgnb.top 实时</b>（'+esc(ZGNB.date||ZGNB.fetched)+
+      '，抓取 '+esc(ZGNB.fetched.slice(11)||'')+'）；'
+    : (ZGNB.error?'<b class="warn">zgnb 实时源不可用（'+esc(ZGNB.error)+'），已回落估算</b>；':'');
+  el.innerHTML=live+'下方状态带 = 本地 v5 <b>估算</b>序列的历史多空波段（+4% 建仓 / −2.3% 或破 MA10 离场），'
+    +'<b>历史回溯仅至 '+lab+'</b>，之后标「未覆盖」不外推。'
     +'11.84 年对齐检验中与净流入相关系数仅 <b>−0.01</b>、同号率 <b>47.7%</b>，'
     +'<b>只作市场活跃度背景，不构成买卖点</b>。';
 }
-/* 研判卡右上角：只展示活跃市值涨跌幅（v5 估算），不展示绝对数值，节省空间 */
+/* 研判卡右上角：只展示活跃市值涨跌幅（zgnb 实时优先 / v5 估算兜底），不展示绝对数值，节省空间 */
 function paintVAmv(){
   var el=document.getElementById('vAmv'); if(!el)return;
+  /* 优先 zgnb.top 实时值：研判卡右上角只保留涨跌幅，节省空间 */
+  if(ZGNB.ok&&ZGNB.pct!==null&&!isNaN(ZGNB.pct)){
+    var zp=Number(ZGNB.pct),zc=zp>0?'up':(zp<0?'down':'');
+    var zlab=ZGNB.date.length>=8?ZGNB.date.slice(5,7)+'-'+ZGNB.date.slice(8,10):ZGNB.date;
+    el.innerHTML='活跃市值 <b class="'+zc+'">'+(zp>0?'+':'')+zp.toFixed(2)+'%</b>'+
+      '<small>zgnb实时 · '+esc(zlab)+'</small>';
+    return;
+  }
+  /* 兜底：v5 估算 dod（历史序列，可能滞后） */
   var v=AMV.dod;
   if(v===null||v===undefined||isNaN(v)){el.innerHTML='活跃市值 <b>--</b>';return}
   var cls=v>0?'up':(v<0?'down':'');
@@ -2378,6 +2420,8 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
   setTimeout(function(){try{loadHistory()}catch(e){}},3000);
   // ③c 活跃市值状态独立拉取：数据一发布，刷新页面即可同步（不再依赖重发整页）
   setTimeout(function(){try{loadAmvState()}catch(e){}},1200);
+  // ③d zgnb.top 实时活跃市值：跨域读 etf-daily 的公开快照，失败自动回落估算
+  setTimeout(function(){try{loadZgnbLive()}catch(e){}},1000);
 
   // ④ 状态文件独立拉取，失败不影响任何结论
   fetchTO("state.json?t="+Date.now(),8000).then(function(r){return r.json()}).then(function(s){

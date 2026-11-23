@@ -377,7 +377,7 @@ h2.pstitle small{display:inline}
   </div>
 </details>
 
-<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 30 分钟自动刷新 · 收盘后仅取一次最终值 · 版本 20261123-2239</small></h2>
+<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 30 分钟自动刷新 · 收盘后仅取一次最终值 · 版本 20261123-2244</small></h2>
 <div class="note" id="qnote">正在连接实时行情源…</div>
 <!--IDB:START-->
 <div class="panel">
@@ -896,7 +896,7 @@ function loadQuoteSnap(){
 /* 版本自检：ver.json 只有几十字节，弱网也能拿到。
    若云端版本比本页新，说明用户看到的是浏览器缓存的旧版，直接给一键更新入口。
    ⚠️ 旧版本身没有这段代码，所以本次升级仍需要用户打开带 ?v= 的新链接或点按钮。 */
-var BUILD_ID="20261123-2239";
+var BUILD_ID="20261123-2244";
 function forceUpdate(){
   try{location.replace(location.pathname+"?v="+Date.now())}
   catch(e){location.reload()}
@@ -1741,7 +1741,8 @@ function paintAmvCal(){
   document.getElementById('calMeta').textContent='（'+s.src+(lab?' · '+lab:'')+'）';
   var aum=Number(ST.aum)||Number((SNAP.verdict||{}).aum)||0;
   document.getElementById('calPen').innerHTML = aum>0
-    ? f(aum/s.v*100,2)+'%<span class="dim">（'+f(aum,0)+' ÷ '+f(s.v,0)+'，分母±10% ⇒ '+f(aum/s.v*110,2)+'%~'+f(aum/s.v*90,2)+'%）</span>'
+    ? f(aum/s.v*100,2)+'%<span class="dim">（'+f(aum,0)+' ÷ '+f(s.v,0)+'；分母 ±10% ⇒ '+
+      f(aum/s.v*100/1.1,2)+'%~'+f(aum/s.v*100/0.9,2)+'%）</span>'
     : '--';
 }
 var HIST={rows:[],cum:[],cum300:[],i0:0,i1:0,minBars:60,src:"内嵌",touched:false,ready:false};

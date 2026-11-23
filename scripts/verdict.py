@@ -13,6 +13,8 @@
 import json
 import os
 import re
+import time
+import urllib.request
 
 START = "<!--VERDICT:START-->"
 END = "<!--VERDICT:END-->"
@@ -21,11 +23,13 @@ HIST_END = "<!--HIST:END-->"
 
 
 def hist_block(rows):
-    """全历史日度序列压成紧凑数组 [d, nf, nf300, idx] 内嵌，零请求即可缩放。
+    """全历史日度序列压成紧凑数组 [d, nf, nf300, idx, aum] 内嵌，零请求即可缩放。
 
-    2877 天 × 4 个数约 80 KB；比对象数组（304 KB）小 4 倍，且离线全部可用。
+    aum（篮子规模，亿）供「分子/分母归因」离线使用；4 字段旧版仍兼容（归因自动跳过）。
     """
-    arr = [[str(r["d"]), r["nf"], r["nf300"], r["idx"]] for r in rows]
+    arr = [[str(r["d"]), r["nf"], r["nf300"], r["idx"],
+            round(float(r["aum"]), 1) if r.get("aum") is not None else None]
+           for r in rows]
     txt = json.dumps(arr, ensure_ascii=False, separators=(",", ":"))
     return (HIST_START + "\n" + '<script id="ntHist" type="application/json">' +
             txt + '</script>\n' + HIST_END)
@@ -50,7 +54,190 @@ def _cls(v):
     return "up" if x > 0 else ("down" if x < 0 else "")
 
 
-def make_verdict(payload, state):
+# ============================ 本期反常（自动生成） ============================
+# 设计原则（2026-11-23）：
+#   ① 只由「当期数据」推出，不允许任何固定文案或人工填写；
+#   ② 判断阶梯只此一份（Python 生成），前端另有一份「同阶梯」的 anomCode()
+#      仅做一致性自检，文案永远只来自本模块；
+#   ③ 数字与结论卡其他处同源（kpi 的 nf/aum/idx + 前一交易日 rows[-2]），
+#      避免「一句话里的数和上面卡片对不上」。
+# 阈值是可解释的经验值，改阈值必须同时跑 scripts/test_anomaly.py。
+ANOM_MIN_ABS = 20.0        # 亿元：低于此额度不判定为「显著」，避免零头噪声
+ANOM_THR_RATIO = 0.3       # 「大额」= 滚动 95 分位阈值 × 0.3
+ANOM_SPLIT_ABS = 5.0       # 亿元：风格间背离的最小可读差额
+ANOM_OFFSET_RATIO = 0.15   # |Δ规模| < |净流入| × 0.15 视为两变量对冲（假稳）
+
+AMV_URL = "https://w972241768-coder.github.io/etf-daily/amv_live.json"
+
+
+def fetch_amv(timeout=6):
+    """取活跃市值（0AMV）当日值。
+
+    口径：0AMV = Σ(活跃流通股本 × 当日价)，单位亿元，是「活筹市值」，
+    恒等式 0号指数(全流通总市值) = 0AMV(活筹) + 0DMV(死筹)。
+    ⚠ 它不是「自由流通市值」，页面必须如实标注（见 docs 口径核对卡）。
+    拿不到则返回 None，任何上游都不因此失败。
+    """
+    try:
+        req = urllib.request.Request(
+            AMV_URL + "?t=%d" % int(time.time()),
+            headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            o = json.loads(r.read().decode("utf-8"))
+        if not isinstance(o, dict) or o.get("ok") is not True:
+            return None
+        v = float(o.get("value"))
+        if not (0 < v < 1_000_000):
+            return None
+        pct = o.get("change_pct")
+        return {"v": v,
+                "pct": None if pct is None else float(pct),
+                "d": str(o.get("trade_date") or o.get("updated_at") or ""),
+                "state": str(o.get("state") or ""),
+                "src": "zgnb.top"}
+    except Exception:
+        return None
+
+
+def _fnum(x, default=None):
+    if x is None:
+        return default
+    try:
+        y = float(x)
+    except (TypeError, ValueError):
+        return default
+    return default if y != y else y
+
+
+def anom_inputs(k, rows):
+    """收集判定所需的全部数值，供「判断」与「自检」共用同一份输入。"""
+    i = {
+        "nf": _fnum(k.get("nf"), 0.0),
+        "nf300": _fnum(k.get("nf300"), 0.0),
+        "aum": _fnum(k.get("aum"), 0.0),
+        "idx": _fnum(k.get("idx"), 0.0),
+        "thr": _fnum(k.get("thr"), 0.0),
+        "pct": _fnum(k.get("pct"), 0.0),
+        "aum_prev": None, "idx_prev": None,
+        "streak": 0, "streak_sum": 0.0, "streak_idx": None,
+    }
+    rows = rows or []
+    if len(rows) >= 2:
+        i["aum_prev"] = _fnum(rows[-2].get("aum"))
+        i["idx_prev"] = _fnum(rows[-2].get("idx"))
+    # 连续同向天数（含当日），以及该串起点前一日 → 当日的指数累计涨跌
+    nf = i["nf"]
+    if rows and abs(nf) > 0:
+        s = 0
+        for r in reversed(rows):
+            v = _fnum(r.get("nf"))
+            if v is None or v * nf <= 0:
+                break
+            s += 1
+        i["streak"] = s
+        i["streak_sum"] = sum(_fnum(rows[-1 - j].get("nf"), 0.0) for j in range(s))
+        base_pos = len(rows) - 1 - s
+        if base_pos >= 0:
+            base = _fnum(rows[base_pos].get("idx"))
+            if base:
+                i["streak_idx"] = (i["idx"] / base - 1) * 100
+    return i
+
+
+def anom_code(i):
+    """判断阶梯（前端 anomCode() 必须与此逐条一致，由 test_anomaly.py 校验）。"""
+    nf = i.get("nf")
+    aum_p, idx_p = i.get("aum_prev"), i.get("idx_prev")
+    if nf is None or not aum_p or not idx_p or not i.get("aum") or not i.get("idx"):
+        return "nodata"
+    big = abs(nf) >= max(abs(i.get("thr") or 0) * ANOM_THR_RATIO, ANOM_MIN_ABS)
+    if not big:
+        return "none"
+    ic = (i["idx"] / idx_p - 1) * 100
+    da = i["aum"] - aum_p
+    # 多日同向逆势优先：同一现象里证据更足（连续 N 日 vs 单日）
+    si = i.get("streak_idx")
+    if (i.get("streak") or 0) >= 3 and i.get("streak_sum") and si is not None \
+            and nf * si < 0 and abs(i["streak_sum"]) >= ANOM_MIN_ABS * 2:
+        return "streak_div"
+    if nf * ic < 0:
+        return "price_div"
+    if abs(da) < abs(nf) * ANOM_OFFSET_RATIO and abs(nf) >= ANOM_MIN_ABS:
+        return "offset"
+    if nf * da < 0 and abs(da) >= ANOM_MIN_ABS:
+        return "aum_div"
+    n300 = i.get("nf300")
+    if n300 is not None and nf * n300 < 0 \
+            and min(abs(nf), abs(n300)) >= ANOM_SPLIT_ABS:
+        return "style_div"
+    return "none"
+
+
+def _anom_text(code, i):
+    """文案：所有数字均来自 anom_inputs(i)，与结论卡同源同精度。"""
+    nf, aum, aum_p, idx, idx_p = (i.get("nf"), i.get("aum"), i.get("aum_prev"),
+                                  i.get("idx"), i.get("idx_prev"))
+    da = (aum - aum_p) if (aum and aum_p) else 0.0
+    ic = ((idx / idx_p - 1) * 100) if (idx and idx_p) else 0.0
+    share = (nf / da * 100) if da else 0.0
+    nf_s = _s(nf, 1, True)
+    if code == "price_div":
+        t = ("单日净流入 <b>%s 亿</b>（250 日分位 <b>%s%%</b>，95%% 阈值 %s 亿）"
+             "而上证 <b>%s%%</b>（%s）—— 资金与价格方向相反，属<b>逆势申购</b>，"
+             "不是行情推动。同日篮子规模 %s 亿"
+             % (nf_s, _s(i.get("pct"), 1), _s(i.get("thr"), 1), _s(ic, 2, True),
+                _s(idx, 2), _s(da, 1, True)))
+        if da and abs(nf) < abs(da):
+            t += "，其中 <b>%s%%</b> 可由净流入解释。" % _s(share, 1)
+        else:
+            t += "，规模增量小于净流入（价格效应 %s 亿）。" % _s(da - nf, 1, True)
+        return t
+    if code == "offset":
+        return ("净流入 <b>%s 亿</b> 与规模变化 <b>%s 亿</b> 几乎相抵（价格/净值效应 %s 亿）—— "
+                "这是「<b>假稳</b>」：分子与分母互相抵消，单看强度读数看不出真实方向。"
+                % (nf_s, _s(da, 1, True), _s(da - nf, 1, True)))
+    if code == "aum_div":
+        return ("净流入 <b>%s 亿</b> 而篮子规模同期 <b>%s 亿</b>（价格/净值效应 %s 亿）—— "
+                "资金在进、规模在退，两个方向相反，强度读数被分母压缩。"
+                % (nf_s, _s(da, 1, True), _s(da - nf, 1, True)))
+    if code == "streak_div":
+        return ("连续 <b>%d</b> 个确认日净流入合计 <b>%s 亿</b>（当日 <b>%s 亿</b>、分位 <b>%s%%</b>），"
+                "同期上证累计 <b>%s%%</b> —— <b>持续逆势申购</b>，与「资金推动上涨」的叙事相反。"
+                % (i.get("streak") or 0, _s(i.get("streak_sum"), 1, True), nf_s,
+                   _s(i.get("pct"), 1), _s(i.get("streak_idx") or 0, 2, True)))
+    if code == "style_div":
+        return ("全宽基 <b>%s 亿</b> 而沪深300 八只 <b>%s 亿</b> —— 总量方向掩盖了结构分化，"
+                "钱在篮子里换风格，不是整体进退。"
+                % (nf_s, _s(i.get("nf300"), 1, True)))
+    if code == "none":
+        return ("净流入 <b>%s 亿</b>、上证 <b>%s%%</b>、规模 <b>%s 亿</b> 三者同向，"
+                "本期无显著背离（判定阈值：显著 ≥ %s 亿）。"
+                % (nf_s, _s(ic, 2, True), _s(da, 1, True),
+                   _s(max(abs(i.get("thr") or 0) * ANOM_THR_RATIO, ANOM_MIN_ABS), 0)))
+    return ""
+
+
+def make_anomaly(k, rows):
+    i = anom_inputs(k, rows)
+    code = anom_code(i)
+    return {"code": code, "text": _anom_text(code, i), "inputs": i}
+
+
+def penetration(amv, aum):
+    """篮子规模 ÷ 活跃市值（0AMV）——「资金池占比」，不是 ETF 穿透率。
+
+    严格穿透率的分母必须是「指数自由流通市值」，当前数据不具备；
+    此处用 0AMV 作分母，优点是每天可得、缺点见页面口径核对卡。
+    """
+    if not amv or not amv.get("v") or not aum:
+        return None
+    r = aum / amv["v"] * 100
+    return {"pct": r, "lo": r / 1.1, "hi": r / 0.9,
+            "v": amv["v"], "d": amv.get("d", ""), "src": amv.get("src", "")}
+
+
+
+def make_verdict(payload, state, amv=None):
     """由完整统计结果生成结论对象。判定只用已确认份额日的数据，不用盘中行情。"""
     k = payload.get("kpi", {})
     rows = payload.get("rows", [])
@@ -135,6 +322,14 @@ def make_verdict(payload, state):
     if not recent and rows:
         recent = [{"d": rows[-1].get("d"), "nf": rows[-1].get("nf", 0)}]
 
+    # 本期反常：纯由当期数据生成；同一条规则既写进 data.json 也写进静态块，
+    # 前端只渲染、不重写文案，避免「页面显示与数据不一致」。
+    anom = make_anomaly(k, rows)
+    # 活跃市值（0AMV）当日值 + 资金池占比；取不到则整体为 None（页面降级显示）。
+    if amv is None:
+        amv = fetch_amv()
+    pen = penetration(amv, aum)
+
     return {
         "asof": str(state.get("asof") or payload.get("asof") or "--"),
         "built": state.get("built_cst", "--"),
@@ -146,6 +341,11 @@ def make_verdict(payload, state):
         "nf": nf, "aum": aum,
         "desc": desc,
         "action": action,
+        "anomaly": anom["text"],
+        "anomaly_code": anom["code"],
+        "anomaly_inputs": anom["inputs"],
+        "amv": amv,
+        "pen": pen,
         "metrics": metrics,
         "recent": recent,
     }
@@ -173,12 +373,16 @@ def render_html(v):
         warn = ('<div class="vwarn">本次取数有 %d 条告警（多为无新增份额日或境外 runner 受限），'
                 '下方数值为<b>最近一个已确认份额日</b>的结论，未受影响。</div>'
                 % len(v["warnings"]))
+    anom = ('<div class="vanom"><b>本期反常</b>：%s</div>' % v["anomaly"]
+            if v.get("anomaly") else "")
     return (
         '<section class="verdict %s" id="verdict">\n'
         '  <div class="vhead"><div class="vlab">研判结论 <span class="vtag">已确认 · 份额口径 T+1</span></div>\n'
         '    <div class="vdate">份额数据日 <b>%s</b> · 文件生成 %s</div></div>\n'
-        '  <div class="vmain"><div class="vtitle">%s<span>%s</span></div>\n'
-        '    <div class="vdesc">%s</div></div>\n'
+        '  <div class="vmain"><div class="vrow"><div class="vtitle">%s<span>%s</span></div>\n'
+        '    <div class="vamv" id="vAmv">活跃市值 <b>--</b></div></div>\n'
+        '    <div class="vdesc">%s</div>\n'
+        '    %s</div>\n'
         '  <div class="vgrid">%s</div>\n'
         '  <div class="vrecent"><span class="dim">近 6 个已确认交易日（亿）：</span>%s</div>\n'
         '  <div class="vact"><b>怎么做</b>：%s</div>\n'
@@ -189,7 +393,7 @@ def render_html(v):
         '  <pre id="diag" class="diag" style="display:none"></pre>\n'
         '</section>\n'
         % (v.get("tone", "neutral"), _d8(v.get("asof")), v.get("built", "--"),
-           v.get("title", "--"), v.get("lead", ""), v.get("desc", ""),
+           v.get("title", "--"), v.get("lead", ""), v.get("desc", ""), anom,
            "".join(ms), _recent_html(v), v.get("action", ""), warn)
     )
 

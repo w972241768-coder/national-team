@@ -362,7 +362,7 @@ h2.pstitle small{display:inline}
   </div>
 </details>
 
-<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 30 分钟自动刷新 · 收盘后仅取一次最终值 · 版本 20261123-1331</small></h2>
+<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 30 分钟自动刷新 · 收盘后仅取一次最终值 · 版本 20261123-1351</small></h2>
 <div class="note" id="qnote">正在连接实时行情源…</div>
 <!--IDB:START-->
 <div class="panel">
@@ -682,7 +682,7 @@ var REPO="w972241768-coder/national-team", WF="update.yml", REF="main";
    ① 用内嵌快照重画一遍，防止用户看到旧缓存页面；
    ② 联网拿到 data.json 后用同一份 verdict 覆盖成云端最新值。
    即使本段完全不执行、所有请求全失败，页面上的静态结论依然可见。 */
-var SNAP={}, NET={data:"待加载",dataMs:0,state:"待加载",src:"内嵌快照",quotes:"待加载",hist:"待加载"};
+var SNAP={}, NET={data:"待加载",dataMs:0,state:"待加载",src:"内嵌快照",quotes:"待加载",hist:"待加载",amv:"待加载"};
 try{SNAP=JSON.parse((document.getElementById("ntSnapshot")||{}).textContent||"{}")}catch(e){SNAP={}}
 function d8(s){s=String(s||"");return s.length===8?s.slice(0,4)+"-"+s.slice(4,6)+"-"+s.slice(6,8):s}
 function paintVerdict(v){
@@ -731,6 +731,7 @@ function toggleDiag(){
     "结论来源："+NET.src+" ｜ 份额数据日："+d8(ST.asof),
     "data.json（轻版）："+NET.data+(NET.dataMs?"（"+NET.dataMs+" ms）":""),
     "history.json（仅曲线）："+NET.hist,
+    "amv_state.json（活跃市值）："+NET.amv+" ｜ 估算截至 "+amvAsofLabel(),
     "state.json："+NET.state,
     "实时行情："+(ST.qerr?"失败："+ST.qerr.slice(0,70):(ST.qn>0?"成功":"待加载"))+
       " ｜ 通道 "+ST.qhow+" ｜ 有效 "+ST.qn+" 只",
@@ -786,7 +787,7 @@ function loadQuoteSnap(){
 /* 版本自检：ver.json 只有几十字节，弱网也能拿到。
    若云端版本比本页新，说明用户看到的是浏览器缓存的旧版，直接给一键更新入口。
    ⚠️ 旧版本身没有这段代码，所以本次升级仍需要用户打开带 ?v= 的新链接或点按钮。 */
-var BUILD_ID="20261123-1331";
+var BUILD_ID="20261123-1351";
 function forceUpdate(){
   try{location.replace(location.pathname+"?v="+Date.now())}
   catch(e){location.reload()}
@@ -1467,17 +1468,43 @@ function sy(v){
   return s*(0.20+0.80*Math.log10(1+a/10)/Math.log10(1+1000/10));
 }
 /* ===== 历史曲线：两图共用一个窗口，支持滚轮/拖拽/捏合/滑块缩放 ===== */
-var AMV={asof:'20261030',pts:[],map:{},dod:null};
+var AMV={asof:'20261030',pts:[],map:{},dod:null,src:null};
+/* 数据源缓存：云端 amv_state.json 拿到后写入 AMV.src；
+   之后 setHistory() 重建映射时复用它，不会被旧内嵌块覆盖回去。 */
 function amvBuildMap(){
-  var el=document.getElementById('ntAmvState');
-  if(!el||!el.textContent.trim())return;
-  try{var o=JSON.parse(el.textContent);AMV.asof=o.asof;AMV.pts=o.pts||[];AMV.dod=(o.dod===undefined||o.dod===null)?null:Number(o.dod)}catch(e){return}
+  var o=AMV.src;
+  if(!o){
+    var el=document.getElementById('ntAmvState');
+    if(!el||!el.textContent.trim())return;
+    try{o=JSON.parse(el.textContent)}catch(e){return}
+  }
+  AMV.src=o;
+  AMV.asof=o.asof; AMV.pts=o.pts||[];
+  AMV.dod=(o.dod===undefined||o.dod===null)?null:Number(o.dod);
   var cur=-1,k=0;
   for(var d in HIST.rows){var day=HIST.rows[d].d;
     while(k<AMV.pts.length&&AMV.pts[k][0]<=day){cur=AMV.pts[k][1];k++}
     AMV.map[day]=cur}
   try{amvRefreshSrc()}catch(e){}
   try{paintVAmv()}catch(e){}
+}
+/* 活跃市值状态数据走独立请求：数据源一发布，刷新页面即可拿到最新值，
+   不必重发整份 HTML；失败时内嵌快照照常兜底。 */
+function loadAmvState(){
+  return fetchTO("amv_state.json?t="+Date.now(),9000)
+    .then(function(r){return r.json()})
+    .then(function(o){
+      if(!o||!o.asof||!o.pts)return;
+      var prev=String(AMV.asof||""),pd=AMV.dod;
+      AMV.src=o;
+      try{amvBuildMap()}catch(e){}
+      if(String(AMV.asof)!==prev||AMV.dod!==pd){
+        try{paintHist()}catch(e){}   // 状态带随新数据重绘
+      }
+      NET.amv="云端 "+AMV.asof;
+      try{updateStatus()}catch(e){}
+    })
+    .catch(function(e){NET.amv="内嵌兜底"});
 }
 function amvStateOf(d){return (d>AMV.asof)?-1:(AMV.map[d]===undefined?-1:AMV.map[d])}
 function amvAsofLabel(){var a=AMV.asof||'20261030';return a.slice(0,4)+'-'+a.slice(4,6)+'-'+a.slice(6,8)}
@@ -1495,8 +1522,11 @@ function paintVAmv(){
   var v=AMV.dod;
   if(v===null||v===undefined||isNaN(v)){el.innerHTML='活跃市值 <b>--</b>';return}
   var cls=v>0?'up':(v<0?'down':'');
+  var last=HIST.rows.length?String(HIST.rows[HIST.rows.length-1].d):String(ST.asof||"");
+  var stale=last&&String(AMV.asof)<last;
   el.innerHTML='活跃市值 <b class="'+cls+'">'+(v>0?'+':'')+Number(v).toFixed(2)+'%</b>'+
-    '<small>估算 · '+amvAsofLabel().slice(5)+'</small>';
+    '<small>估算 · '+amvAsofLabel().slice(5)+'</small>'+
+    (stale?'<small style="color:#b45309;font-weight:600">数据滞后</small>':'');
 }
 var HIST={rows:[],cum:[],cum300:[],i0:0,i1:0,minBars:60,src:"内嵌",touched:false,ready:false};
 var STYMON=[],STYLIST=[];   // 图B底部分风格月度堆叠柱数据源
@@ -2346,6 +2376,8 @@ function saveRun(){var t=($("tok").value||"").trim();if(t)localStorage.setItem("
   // ③ 实时链路已在开头启动；分时请求较重，延后 2.5 秒避免挤占行情连接。
   // ③b 曲线数据独立异步加载（内嵌 2879 天已可离线缩放），延后 3 秒再核对云端。
   setTimeout(function(){try{loadHistory()}catch(e){}},3000);
+  // ③c 活跃市值状态独立拉取：数据一发布，刷新页面即可同步（不再依赖重发整页）
+  setTimeout(function(){try{loadAmvState()}catch(e){}},1200);
 
   // ④ 状态文件独立拉取，失败不影响任何结论
   fetchTO("state.json?t="+Date.now(),8000).then(function(r){return r.json()}).then(function(s){

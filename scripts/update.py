@@ -25,6 +25,12 @@ import requests
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 DOCS = os.path.join(ROOT, "docs")
+# 同目录模块（build_pen / verdict）需要显式加入 sys.path：
+# CI 用 `python scripts/update.py` 启动时 sys.path[0] 是 scripts/ 本身，
+# 但被其他脚本 import 时不一定是，统一在这里兜住。
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
 
 SSE_URL = "https://query.sse.com.cn/commonQuery.do"
 SSE_HEAD = {"Referer": "https://www.sse.com.cn/", "User-Agent": "Mozilla/5.0"}
@@ -702,8 +708,30 @@ def main():
     # index.html / history.json，故在脚本里显式 git add 兜住；push.paths 已
     # 排除 docs/，重复提交不会触发死循环。本地非 git 环境静默跳过即可。
     try:
+        # 穿透率：先重算（份额刚更新过，分子应同步），失败则复用已有 pen.json
+        pen = None
+        try:
+            import build_pen
+            pen = build_pen.build()
+            for line in pen.get("report") or []:
+                print("  穿透率：" + line, flush=True)
+            pen.pop("report", None)
+            pen_path = os.path.join(DOCS, "pen.json")
+            with open(pen_path, "w", encoding="utf-8", newline="\n") as f:
+                json.dump(build_pen.compact(pen), f, ensure_ascii=False, separators=(",", ":"))
+                f.write("\n")
+            print("  穿透率：已重算 → docs/pen.json（asof %s）" % (pen.get("asof") or "--"), flush=True)
+        except Exception as e:
+            warn("穿透率重算失败，尝试复用旧文件：%s" % e)
+            try:
+                with open(os.path.join(DOCS, "pen.json"), "r", encoding="utf-8") as f:
+                    pen = json.load(f)
+                print("  穿透率：复用旧 pen.json（asof %s）" % (pen.get("asof") or "--"), flush=True)
+            except Exception:
+                pen = None
+
         changed = embed_verdict(payload["verdict"], os.path.join(DOCS, "index.html"),
-                                payload.get("quotes", []), lite, payload["rows"])
+                                payload.get("quotes", []), lite, payload["rows"], pen=pen)
         print("  结论+明细内嵌：%s（轻版 %.0f KB / 曲线 %.0f KB）"
               % ("已更新 index.html" if changed else "内容无变化",
                  os.path.getsize(os.path.join(DOCS, "data.json")) / 1024.0,
@@ -714,7 +742,7 @@ def main():
         try:
             import subprocess
             subprocess.run(["git", "add", "docs/index.html", "docs/history.json",
-                            "docs/data.json", "docs/state.json"], check=False)
+                            "docs/data.json", "docs/state.json", "docs/pen.json"], check=False)
         except Exception as e:
             warn("git add 兜底失败（不影响数据）：%s" % e)
 

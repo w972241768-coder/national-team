@@ -20,6 +20,20 @@ START = "<!--VERDICT:START-->"
 END = "<!--VERDICT:END-->"
 HIST_START = "<!--HIST:START-->"
 HIST_END = "<!--HIST:END-->"
+PEN_START = "<!--PEN:START-->"
+PEN_END = "<!--PEN:END-->"
+
+
+def pen_block(pen):
+    """把穿透率序列内嵌进页面（约 30 KB），零请求即可显示，云端 pen.json 仅作更新。
+
+    pen 结构见 scripts/build_pen.py：{"asof","anchor","src","calib","series":{指数:[...]}}
+    缺数据时写入空对象，前端会退化为「数据未载入」而不是报错。
+    """
+    txt = json.dumps(pen or {}, ensure_ascii=False, separators=(",", ":"))
+    txt = txt.replace("</", "<\\/")
+    return (PEN_START + "\n" + '<script id="ntPen" type="application/json">' +
+            txt + '</script>\n' + PEN_END)
 
 
 def hist_block(rows):
@@ -403,7 +417,7 @@ def _d8(s):
     return s[:4] + "-" + s[4:6] + "-" + s[6:8] if len(s) == 8 else s
 
 
-def embed_verdict(v, html_path, quotes=None, lite=None, hist_rows=None):
+def embed_verdict(v, html_path, quotes=None, lite=None, hist_rows=None, pen=None):
     """幂等替换 index.html 里的 VERDICT 块，并内嵌精简快照供 JS 覆盖使用。
 
     quotes（26 只代码表，约 2 KB）一并内嵌：即使 data.json 完全不可用，
@@ -432,6 +446,11 @@ def embed_verdict(v, html_path, quotes=None, lite=None, hist_rows=None):
         hb = hist_block(hist_rows)
         new = re.sub(re.escape(HIST_START) + r".*?" + re.escape(HIST_END),
                      lambda _m: hb, new, count=1, flags=re.S)
+    # 穿透率序列（约 30 KB）内嵌：页面零请求即可显示，云端 pen.json 只作更新。
+    if PEN_START in new and PEN_END in new:
+        pb = pen_block(pen or {})
+        new = re.sub(re.escape(PEN_START) + r".*?" + re.escape(PEN_END),
+                     lambda _m: pb, new, count=1, flags=re.S)
     if new == html:
         return False
     tmp = html_path + ".tmp"

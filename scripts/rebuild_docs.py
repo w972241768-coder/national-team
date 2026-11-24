@@ -85,8 +85,29 @@ def main():
         json.dump(lite_new, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, os.path.join(DOCS, "data.json"))
 
+    # 穿透率：先尝试从云端 pen.json 读取，缺失则现场重算（需份额+净值+指数点位）
+    pen = None
+    pen_path = os.path.join(DOCS, "pen.json")
+    try:
+        with open(pen_path, "r", encoding="utf-8") as f:
+            pen = json.load(f)
+        print("  穿透率：复用 docs/pen.json（asof %s）" % (pen.get("asof") or "--"))
+    except Exception:
+        try:
+            import build_pen
+            pen = build_pen.build()
+            for line in pen.get("report") or []:
+                print("    " + line)
+            pen.pop("report", None)
+            with open(pen_path, "w", encoding="utf-8", newline="\n") as f:
+                json.dump(pen, f, ensure_ascii=False, separators=(",", ":"))
+            print("  穿透率：已重算并写入 docs/pen.json（asof %s）" % (pen.get("asof") or "--"))
+        except Exception as e:
+            print("  穿透率：重算失败（%s），本次不内嵌" % e)
+            pen = None
+
     changed = V.embed_verdict(v, os.path.join(DOCS, "index.html"),
-                              lite.get("quotes") or [], lite_new, rows)
+                              lite.get("quotes") or [], lite_new, rows, pen=pen)
     print("  index.html：%s" % ("已重嵌" if changed else "内容无变化"))
 
     if not a.no_bump:

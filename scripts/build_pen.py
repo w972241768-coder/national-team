@@ -51,6 +51,12 @@ SPEC = [
     dict(name="中证1000", code="000852", etfs=["512100"],
          sse_etf=269.5, fmv=77984.8, pen=0.35,
          stats=dict(mean=0.78, lo=0.15, hi=1.54, p0=1.49, p1=0.35)),
+    # 中证2000：沪市 5 只产品全部在册，份额/净值取自 data/pen_extra.json
+    # （不进主篮子 BASKET，避免污染 11.84 年净流入基线）
+    dict(name="中证2000", code="932000", etfs=[],
+         extra_file="pen_extra.json",
+         sse_etf=77.2, fmv=61718.0, pen=0.13,
+         stats=dict(mean=0.07, lo=0.04, hi=0.16, p0=0.05, p1=0.13)),
 ]
 ANCHOR_DAY = "20260907"
 SAMPLE_START, SAMPLE_END = "20250901", "20260907"   # 研报样本期
@@ -84,6 +90,16 @@ def build() -> dict:
     start = min(days)
     end = max(days)
 
+    # 额外产品（中证2000）：独立文件，不进主篮子，避免污染净流入基线
+    extra = {}
+    extra_path = os.path.join(ROOT, "data", "pen_extra.json")
+    if os.path.exists(extra_path):
+        try:
+            with open(extra_path, "r", encoding="utf-8") as f:
+                extra = json.load(f)
+        except Exception:
+            extra = {}
+
     out = {"asof": "", "anchor": ANCHOR_DAY,
            "src": "份额×净值（沪市）÷ 指数自由流通市值（点位×校准除数）",
            "calib": "东吴证券《被动化的边界》2026-09-20 表1/表2", "series": {}}
@@ -98,12 +114,27 @@ def build() -> dict:
 
         def scale(day: str) -> float:
             tot = 0.0
-            for c in sp["etfs"]:
-                s = sh.get(day, {}).get(c)
-                n = nav.get(c, {}).get(day)
-                if s and n:
-                    tot += float(s) * float(n)
+            if sp.get("extra_file"):
+                # 额外产品：份额与净值来自 pen_extra.json（不进主篮子）
+                es = extra.get("shares") or {}
+                en = extra.get("nav") or {}
+                for c in extra.get("codes") or []:
+                    s = es.get(day, {}).get(c)
+                    n = en.get(c, {}).get(day)
+                    if s and n:
+                        tot += float(s) * float(n)
+            else:
+                for c in sp["etfs"]:
+                    s = sh.get(day, {}).get(c)
+                    n = nav.get(c, {}).get(day)
+                    if s and n:
+                        tot += float(s) * float(n)
             return tot / 1e8
+
+        # 额外产品的可用日期以自身数据为准（主篮子日期可能更早/更晚）
+        src_days = days
+        if sp.get("extra_file"):
+            src_days = sorted((extra.get("shares") or {}).keys()) or days
 
         cov = scale(ANCHOR_DAY) / sp["sse_etf"] if sp["sse_etf"] else 0
         if not (0.3 < cov <= 1.02):
@@ -111,7 +142,7 @@ def build() -> dict:
             continue
 
         rows = []
-        for day in days:
+        for day in src_days:
             p = px.get(day)
             if not p:
                 continue

@@ -271,7 +271,7 @@ footer{margin-top:26px;padding-top:12px;border-top:1px solid var(--line);color:v
 /* ===== 穿透率：桌面用表格，手机改卡片（8 列在 390px 下会被裁掉关键列） ===== */
 .pencards{display:none}
 @media(max-width:640px){
-  #penTableWrap{display:none}
+  #penTableWrap,#penStateWrap,#penHistWrap{display:none}
   .pencards{display:block}
   .pencard{border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin:0 0 8px;background:#fff}
   .pencard .pch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
@@ -394,7 +394,7 @@ h2.pstitle small{display:inline}
   </div>
 </details>
 
-<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 30 分钟自动刷新 · 收盘后仅取一次最终值 · 版本 20261124-1220</small></h2>
+<h2 id="part1">一 · 盘中实时行情 <small>LIVE · 盘中 30 分钟自动刷新 · 收盘后仅取一次最终值 · 版本 20261124-1224</small></h2>
 <div class="note" id="qnote">正在连接实时行情源…</div>
 <!--IDB:START-->
 <div class="panel">
@@ -683,17 +683,18 @@ h2.pstitle small{display:inline}
   <div class="vlab" style="margin-bottom:6px">现在是什么状态
     <span class="reltone" id="penStateTone">载入中…</span></div>
   <div id="penState" class="note" style="margin:2px 0 10px">正在计算…</div>
-  <div class="scroll"><table>
+  <div class="scroll" id="penStateWrap"><table>
     <thead><tr><th>指数</th><th class="n">当前</th><th class="n">3年分位</th>
       <th class="n">3年区间</th><th>状态判读</th></tr></thead>
     <tbody id="penStateBody"><tr><td colspan="5" class="dim">载入中…</td></tr></tbody>
   </table></div>
+  <div id="penStateCards" class="pencards"></div>
 </div>
 
 <div class="panel">
   <h3 style="margin-top:0">历史上穿透率处在这些位置时，后来发生了什么
     <small style="color:var(--dim);font-weight:400">· 沪深300，2014-2026</small></h3>
-  <div class="scroll"><table>
+  <div class="scroll" id="penHistWrap"><table>
     <thead><tr><th>穿透率分档</th><th class="n">对应区间</th><th class="n">未来20日</th>
       <th class="n">胜率</th><th>当时市场特征</th></tr></thead>
     <tbody>
@@ -707,6 +708,7 @@ h2.pstitle small{display:inline}
         <td class="n">80%</td><td class="dim">大额资金在场，通常是政策底之后的建仓期</td></tr>
     </tbody>
   </table></div>
+  <div id="penHistCards" class="pencards"></div>
   <div class="note" style="margin-top:8px">
     <b>⚠ 这张表有个陷阱，必须说清</b>：看起来「穿透率越高、未来越好」，但做了平稳化（250 日 z-score）之后，
     <b>控制住 ETF 规模本身，穿透率的偏相关只剩 −0.004</b> —— 也就是说，<b>这层预测力全部来自「ETF 规模在涨」这件事，
@@ -1046,7 +1048,7 @@ function loadQuoteSnap(){
 /* 版本自检：ver.json 只有几十字节，弱网也能拿到。
    若云端版本比本页新，说明用户看到的是浏览器缓存的旧版，直接给一键更新入口。
    ⚠️ 旧版本身没有这段代码，所以本次升级仍需要用户打开带 ?v= 的新链接或点按钮。 */
-var BUILD_ID="20261124-1220";
+var BUILD_ID="20261124-1224";
 function forceUpdate(){
   try{location.replace(location.pathname+"?v="+Date.now())}
   catch(e){location.reload()}
@@ -2332,8 +2334,26 @@ function penStateOf(pct){
 }
 function paintPenState(){
   var tb=$("penStateBody"); if(!tb)return;
+  /* 历史对照表 → 手机卡片：表格里的分档/区间/收益/胜率/特征 重排成卡片 */
+  try{
+    var hw=$("penHistWrap"), hc=$("penHistCards");
+    if(hw&&hc&&!hc.getAttribute("data-built")){
+      var out="";
+      [].forEach.call(hw.querySelectorAll("tbody tr"),function(tr){
+        var c=[].map.call(tr.children,function(td){return td.innerText.replace(/\s+/g," ").trim()});
+        if(c.length<5)return;
+        out+='<div class="pencard"><div class="pch"><span class="pcn">'+esc(c[0])+'</span>'+
+          '<span class="pcv">'+esc(c[2])+'</span></div>'+
+          '<div class="pcg"><span>对应区间 <b>'+esc(c[1])+'</b></span>'+
+          '<span>胜率 <b>'+esc(c[3])+'</b></span></div>'+
+          '<div class="pcc">'+esc(c[4])+'</div></div>';
+      });
+      hc.innerHTML=out;
+      hc.setAttribute("data-built","1");
+    }
+  }catch(e){}
   var S=(PEN.data&&PEN.data.series)||{};
-  var names=Object.keys(S), rows="", hi=null, lo=null;
+  var names=Object.keys(S), rows="", cards="", hi=null, lo=null;
   names.forEach(function(nm){
     var a=penRows(S[nm]); if(a.length<30)return;
     var vals=a.map(function(r){return r.pen}), cur=vals[vals.length-1];
@@ -2341,13 +2361,20 @@ function paintPenState(){
     var st=penStateOf(pct);
     if(hi===null||pct>hi.pct)hi={nm:nm,pct:pct,cur:cur};
     if(lo===null||pct<lo.pct)lo={nm:nm,pct:pct,cur:cur};
+    var lo3=Math.min.apply(null,vals), hi3=Math.max.apply(null,vals);
     rows+="<tr><td><b>"+esc(nm)+"</b></td>"+
       '<td class="n"><b>'+f(cur,2)+'%</b></td>'+
       '<td class="n"><b class="'+st.cls+'">'+f(pct,1)+'%</b></td>'+
-      '<td class="n dim">'+f(Math.min.apply(null,vals),2)+"~"+f(Math.max.apply(null,vals),2)+'%</td>'+
+      '<td class="n dim">'+f(lo3,2)+"~"+f(hi3,2)+'%</td>'+
       '<td><b>'+esc(st.t)+'</b> <span class="dim">'+esc(st.d)+'</span></td></tr>';
+    cards+='<div class="pencard"><div class="pch"><span class="pcn">'+esc(nm)+'</span>'+
+      '<span class="pcv">'+f(cur,2)+'%</span></div>'+
+      '<div class="pcg"><span>3年分位 <b class="'+st.cls+'">'+f(pct,1)+'%</b></span>'+
+      '<span>3年区间 <b>'+f(lo3,2)+'~'+f(hi3,2)+'%</b></span></div>'+
+      '<div class="pcc"><b>'+esc(st.t)+'</b> '+esc(st.d)+'</div></div>';
   });
   tb.innerHTML=rows||'<tr><td colspan="5" class="dim">无可用序列</td></tr>';
+  if($("penStateCards"))$("penStateCards").innerHTML=cards;
   if($("penStateTone")&&hi){
     $("penStateTone").textContent="最高 "+hi.nm+" 分位 "+f(hi.pct,0)+"% · 最低 "+lo.nm+" 分位 "+f(lo.pct,0)+"%";
   }

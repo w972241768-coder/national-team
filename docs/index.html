@@ -234,6 +234,41 @@ footer{margin-top:26px;padding-top:12px;border-top:1px solid var(--line);color:v
 .vact b{color:#9a5b00}
 .vwarn{font-size:11.5px;color:#9a5b00;margin-top:8px;line-height:1.7}
 .vfoot{font-size:11px;color:var(--soft);line-height:1.75;margin-top:10px;border-top:1px solid #eef0f4;padding-top:8px}
+/* ===== 沪深300 穿透率 · 龙队在场判断（研判结论的补充卡）
+   刻意放在 VERDICT 标记块之外：CI 的 embed_verdict 只重写 VERDICT/HIST/PEN 三段，
+   这张卡由前端 paintPenCard() 从穿透率序列 + 净流入序列实时计算，不会被覆盖。 */
+.vpen{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--teal);
+ border-radius:8px;padding:12px 14px 12px;margin:6px 0 6px}
+.vphead{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.vplab{font-size:13px;color:var(--txt);font-weight:600;letter-spacing:.3px}
+.vptag{font-size:11px;color:var(--teal);background:#e6f3f4;border-radius:4px;padding:2px 8px;margin-left:6px;font-weight:400}
+.vpdate{font-size:12px;color:var(--dim)}
+.vpstate{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:10px 0 2px}
+.vpbadge{font-size:21px;font-weight:700;letter-spacing:.5px;white-space:nowrap}
+.vpbadge small{font-size:11px;font-weight:500;border-radius:4px;padding:2px 8px;margin-left:7px;
+ vertical-align:3px;color:#fff;background:#9aa3b0}
+.vpbadge.in{color:var(--red)}.vpbadge.in small{background:var(--red)}
+.vpbadge.out{color:var(--green)}.vpbadge.out small{background:var(--green)}
+.vpbadge.flat{color:var(--dim)}
+.vpstate .vplead{font-size:12.5px;color:var(--dim);line-height:1.7;flex:1;min-width:220px}
+.vpgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:11px 0 8px}
+.vpm{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:9px 11px;min-width:0}
+.vpm span{display:block;font-size:11px;color:var(--dim)}
+.vpm b{display:block;font-size:19px;font-weight:700;margin:3px 0 1px;
+ font-variant-numeric:tabular-nums;white-space:nowrap}
+.vpm em{font-style:normal;font-size:10.5px;color:var(--dim);display:block;line-height:1.5}
+.vpdec{font-size:12.5px;line-height:1.85;color:var(--txt);background:#f3f8f9;
+ border-left:3px solid var(--teal);padding:8px 11px;border-radius:0 5px 5px 0;margin:8px 0 0}
+.vpdec b{color:#0b6b70}
+.vprule{font-size:11.5px;color:var(--dim);line-height:1.9;border-top:1px solid #eef0f4;
+ padding-top:8px;margin-top:9px}
+.vprule i{font-style:normal;color:var(--txt);font-weight:600}
+.vpact{font-size:12.5px;line-height:1.85;background:#fff8e8;border-left:3px solid var(--gold);
+ padding:8px 12px;border-radius:0 6px 6px 0;margin-top:9px;color:var(--txt)}
+.vpact b{color:#9a5b00}
+@media(max-width:700px){.vpen{padding:11px}
+ .vpgrid{grid-template-columns:repeat(2,1fr);gap:8px}
+ .vpbadge{font-size:19px}.vpm b{font-size:17px}.vpdec{font-size:12px}.vpact{font-size:12px}}
 .vdiag{float:right;font-size:10.5px;padding:3px 8px}
 .diag{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:10px;
  font-size:11px;line-height:1.8;color:var(--blue);white-space:pre-wrap;word-break:break-all;margin-top:9px;overflow-x:auto}
@@ -378,6 +413,26 @@ h2.pstitle small{display:inline}
 <script id="ntAmvState" type="application/json">{"asof":"20261111","pts":[["20110104",0],["20110211",1],["20110318",0],["20110329",1],["20110331",0],["20110411",1],["20110415",0],["20110624",1],["20110721",0],["20110810",1],["20110817",0],["20110921",1],["20110922",0],["20111012",1],["20111020",0],["20111025",1],["20111117",0],["20111201",1],["20111202",0],["20120109",1],["20120116",0],["20120117",1],["20120201",0],["20120203",1],["20120320",0],["20120413",1],["20120417",0],["20120419",1],["20120511",0],["20120529",1],["20120604",0],["20120702",1],["20120703",0],["20120806",1],["20120816",0],["20120907",1],["20120917",0],["20120928",1],["20121008",0],["20121009",1],["20121016",0],["20121102",1],["20121105",0],["20121205",1],["20130125",0],["20130129",1],["20130219",0],["20130301",1],["20130308",0],["20130321",1],["20130322",0],["20130419",1],["20130423",0],["20130506",1],["20130604",0],["20130626",1],["20130627",0],["20130711",1],["20130729",0],["20130813",1],["20130822",0],["20130909",1],["20130926",0],["20131014",1],["20131016",0],["20131115",1],["20131210",0],["20140122",1],["20140305",0],["20140512",1],["20140513",0],["20140616",1],["20140619",0],["20140627",1],["20140721",0],["20140725",1],["20140827",0],["20140902",1],["20140922",0],["20141029",1],["20141118",0],["20141124",1],["20141223",0],["20150106",1],["20150108",0],["20150121",1],["20150129",0],["20150302",1],["20150415",0],["20150417",1],["20150505",0],["20150511",1],["20150528",0],["20150601",1],["20150615",0],["20150630",1],["20150701",0],["20150709",1],["20150710",0],["20150713",1],["20150715",0],["20150717",1],["20150727",0],["20150729",1],["20150730",0],["20150804",1],["20150805",0],["20150810",1],["20150818",0],["20150827",1],["20150828",0],["20150909",1],["20150910",0],["20150916",1],["20150917",0],["20151008",1],["20151009",0],["20151012",1],["20151021",0],["20151022",1],["20151028",0],["20151104",1],["20151118",0],["20151218",1],["20151228",0],["20160119",1],["20160120",0],["20160216",1],["20160225",0],["20160302",1],["20160309",0],["20160317",1],["20160329",0],["20160330",1],["20160412",0],["20160413",1],["20160418",0],["20160503",1],["20160504",0],["20160531",1],["20160613",0],["20160615",1],["20160719",0],["20160815",1],["20160824",0],["20161011",1],["20161202",0],["20170209",1],["20170310",0],["20170406",1],["20170414",0],["20170607",1],["20170630",0],["20170719",1],["20170811",0],["20170828",1],["20170918",0],["20180103",1],["20180131",0],["20180312",1],["20180319",0],["20180327",1],["20180412",0],["20180712",1],["20180719",0],["20180723",1],["20180730",0],["20180919",1],["20181008",0],["20181022",1],["20181123",0],["20181203",1],["20181205",0],["20190104",1],["20190123",0],["20190211",1],["20190314",0],["20190401",1],["20190411",0],["20190611",1],["20190612",0],["20190620",1],["20190628",0],["20190701",1],["20190704",0],["20190819",1],["20190918",0],["20191028",1],["20191108",0],["20191213",1],["20200203",0],["20200204",1],["20200228",0],["20200302",1],["20200309",0],["20200506",1],["20200514",0],["20200601",1],["20200716",0],["20200803",1],["20200811",0],["20201012",1],["20201021",0],["20201109",1],["20201119",0],["20201231",1],["20210127",0],["20210420",1],["20210616",0],["20210712",1],["20210816",0],["20210824",1],["20210916",0],["20220316",1],["20220324",0],["20220427",1],["20220428",0],["20220429",1],["20220517",0],["20220606",1],["20220708",0],["20221014",1],["20221122",0],["20230130",1],["20230223",0],["20230403",1],["20230421",0],["20230731",1],["20230809",0],["20230828",1],["20230907",0],["20231025",1],["20231117",0],["20231229",1],["20240105",0],["20240124",1],["20240130",0],["20240206",1],["20240325",0],["20240417",1],["20240418",0],["20240429",1],["20240513",0],["20240731",1],["20240808",0],["20240830",1],["20240906",0],["20240924",1],["20241011",0],["20241014",1],["20241114",0],["20250114",1],["20250115",0],["20250206",1],["20250228",0],["20250409",1],["20250417",0],["20250506",1],["20250515",0],["20250625",1],["20250904",0],["20260105",1],["20260202",0],["20260408",1],["20260521",0],["20260525",1],["20260529",0],["20260615",1],["20260702",0],["20260721",1],["20260722",0],["20260805",1],["20260819",0],["20261023",1],["20261026",0],["20261104",1],["20261106",0]],"dod":1.8509}</script>
 <!--AMVSTATE:END-->
 
+<section class="vpen" id="vPenCard" aria-label="沪深300 穿透率与龙队在场判断">
+  <div class="vphead">
+    <div class="vplab">沪深300 穿透率 · 龙队在场判断 <span class="vptag">研判结论 · 存量口径补充</span></div>
+    <div class="vpdate" id="vpDate">正在载入穿透率序列…</div>
+  </div>
+  <div class="vpstate">
+    <div class="vpbadge flat" id="vpBadge">—<small>判读中</small></div>
+    <div class="vplead" id="vpLead">穿透率序列载入后，这里给出「被动资金还在不在、正在进还是正在出」的三态判断。</div>
+  </div>
+  <div class="vpgrid" id="vpGrid"></div>
+  <div class="vpdec" id="vpDec">—</div>
+  <div class="vprule">
+    <i>怎么判</i>：以<b>近 20 日沪深300 八只 ETF 的净申购额</b>为主判据（区间分位 75%/25% 为强弱线，|额|&lt;200 亿记僵持）；
+    <b>穿透率只作深度确认</b>——它等于「规模 ÷ 自由流通市值」，指数下跌也会把它推高，所以不能单看它涨跌。
+    <br><i>怎么用</i>：这是<b>存量视角的在场证明</b>，不是买卖信号；公开数据只能看到被动资金整体进出，
+    <b>无法辨认申购方是不是汇金</b>，只能靠「逆势、大额、连续」这三个行为特征去推断。
+  </div>
+  <div class="vpact" id="vpAct">—</div>
+</section>
+
 
 <div class="lite" id="datanote">✅ 结论与全部明细表格均已写进网页，<b>不依赖联网</b>；联网后自动核对最新值。仅两张历史曲线与实时行情需联网。</div>
 
@@ -499,9 +554,10 @@ h2.pstitle small{display:inline}
     <div class="crosstip" id="ctip1"></div></div>
 
   <div class="chartsep"></div>
-  <div class="zhist"><b>图 B · 累计净流入曲线</b>　累计基准 2015-01-06，纵轴按当前窗口自适应，虚线为零轴。</div>
+  <div class="zhist"><b>图 B · 累计净流入曲线</b>　累计基准 2015-01-06，纵轴按当前窗口自适应，虚线为零轴；<b style="color:#0e8f96">青线 = 沪深300 穿透率（右轴 %，仅近 3 年）</b>。</div>
   <div class="legend"><span><i style="background:#d93630"></i>16 只全宽基</span>
-    <span><i style="background:#2b5fd9"></i>沪深300 八只</span><span class="amvlg"><i style="background:#f3d9d7"></i>多头</span><span class="amvlg"><i style="background:#dbe4f3"></i>空仓</span><span class="amvlg"><i style="background:#e8eaee"></i>未覆盖</span></div>
+    <span><i style="background:#2b5fd9"></i>沪深300 八只</span>
+    <span><i style="background:#0e8f96"></i>沪深300 穿透率（右轴虚线 · 存量占比）</span><span class="amvlg"><i style="background:#f3d9d7"></i>多头</span><span class="amvlg"><i style="background:#dbe4f3"></i>空仓</span><span class="amvlg"><i style="background:#e8eaee"></i>未覆盖</span></div>
   <div class="chartbox" id="box2"><div id="c2"></div><div class="cross" id="cross2"></div>
     <div class="crosstip" id="ctip2"></div></div>
   <div class="legend stylelg" id="c3legend"></div>
@@ -520,6 +576,10 @@ h2.pstitle small{display:inline}
 </div>
 <div class="note"><b>这两张图该怎么读</b>：11.84 年全样本检验显示，净流入/流出对上证指数
   <b>没有稳定、可交易的预测力</b>；唯一稳定的方向是「今日指数涨跌 → 明日申赎」的滞后反应。
+  <br><b>图B 右轴的青线（沪深300 穿透率）不是第三条独立信号</b>：它和「沪深300 八只」那条蓝线在数学上同源——
+  近 20 日净申购与近 20 日穿透率变化的相关系数是 <b>0.97</b>，穿透率的相对变动约等于「净申购 ÷ 篮子规模」。
+  叠上去的唯一目的是把「亿元」翻译成「占自由流通市值的百分比」，方便判断被动资金到底站到了多深；
+  读数看两条：<b>蓝线斜率 = 在进还是在出，青线水平 = 进到多深了</b>。
   详细证据与条件式参考建议见 <a href="#part5" style="color:var(--blue)">⑥ 关系与建议</a>，
   完整研究看板见 <a href="relation.html" style="color:var(--blue)">这里</a>。</div>
 
@@ -1974,7 +2034,7 @@ function chartGeom(which){
   var mob=innerWidth<700;
   return {w:mob?620:1100,h:mob?(which===2?300:260):(which===2?360:300),
           pl:which===1?(mob?46:48):(mob?52:54),
-          pr:which===1?(mob?32:38):14,
+          pr:which===1?(mob?32:38):(mob?46:52),
           pt:18,pb:30,fs:mob?13:9};
 }
 function xTicks(R,FS){
@@ -2090,11 +2150,34 @@ function styleBand(R,X,top,bandH,FS,pl,iw){
   });
   return o.join("");
 }
+/* 沪深300 穿透率：日期 → 百分比的查表（按 asof 缓存，云端 pen.json 覆盖后自动失效重建）。 */
+function penMap300(){
+  if(!PEN.ok||!PEN.data||!PEN.data.series)return null;
+  if(penMap300._k===PEN.data.asof&&penMap300._m)return penMap300._m;
+  var rows=penRows(PEN.data.series["沪深300"]||[]),o={};
+  rows.forEach(function(r){o[r.d]=r.pen});
+  penMap300._k=PEN.data.asof;penMap300._m=o;
+  return o;
+}
 function chartCum(R,cum,c300,i0){
   var g=chartGeom(2),w=g.w,h=g.h,pl=g.pl,pr=g.pr,pt=g.pt,pb=g.pb,FS=g.fs;
   var mob=innerWidth<700, bandH=mob?52:72;
   var iw=w-pl-pr,ih=h-pt-pb,ihL=Math.max(60,ih-bandH-18);
   var A=cum.slice(i0,i0+R.length),B=c300.slice(i0,i0+R.length);
+  /* 穿透率叠加：右轴为存量占比（%），与左轴累计流量（亿元）量纲完全不同，
+     所以单独一套刻度；序列只有近 3 年，窗口更早的部分留空不补。 */
+  var pm=penMap300(),PV=[];
+  if(pm){for(var k=0;k<R.length;k++){var q0=pm[R[k].d];
+    if(q0!=null&&isFinite(q0))PV.push(q0)}}
+  var hasPen=PV.length>4,plo=0,phi=1;
+  if(hasPen){
+    plo=Math.min.apply(null,PV);phi=Math.max.apply(null,PV);
+    var pPad=(phi-plo)*0.18||0.08;
+    plo=Math.max(0,plo-pPad);phi=phi+pPad;
+  }
+  var Y2=function(v){return pt+ihL*(1-(v-plo)/Math.max(1e-9,phi-plo))};
+  var penPoly=function(s){return '<polyline points="'+s.join(" ")+'" fill="none" stroke="'+C.teal+
+    '" stroke-width="1.9" stroke-dasharray="5 3" stroke-linejoin="round" stroke-linecap="round"/>'};
   var lo=Math.min(0,Math.min.apply(null,A),Math.min.apply(null,B)),
       hi=Math.max(0,Math.max.apply(null,A),Math.max.apply(null,B));
   var X=function(i){return pl+iw*i/Math.max(1,R.length-1)};
@@ -2111,6 +2194,23 @@ function chartCum(R,cum,c300,i0){
     o.push('<polyline points="'+p[0].map(function(v,i){return f(X(i),1)+","+f(Y(v),1)}).join(" ")+
       '" fill="none" stroke="'+p[1]+'" stroke-width="1.7"/>');
   });
+  if(hasPen){
+    /* 右轴只给 3 个刻度，避免与左轴 5 条网格线打架 */
+    for(var t2=0;t2<3;t2++){
+      var v2=plo+(phi-plo)*t2/2;
+      o.push('<text x="'+(pl+iw+5)+'" y="'+f(Y2(v2)+3,1)+'" fill="'+C.teal+
+        '" font-size="'+(FS-1)+'">'+f(v2,2)+'%</text>');
+    }
+    o.push('<text x="'+(pl+iw+5)+'" y="'+f(pt-5,1)+'" fill="'+C.teal+
+      '" font-size="'+(FS-1)+'">穿透率</text>');
+    var seg=[];
+    R.forEach(function(r,i){
+      var q1=pm[r.d];
+      if(q1==null||!isFinite(q1)){if(seg.length>1)o.push(penPoly(seg));seg=[];return}
+      seg.push(f(X(i),1)+","+f(Y2(q1),1));
+    });
+    if(seg.length>1)o.push(penPoly(seg));
+  }
   xTicks(R,FS).forEach(function(t){
     o.push('<line x1="'+f(X(t.i),1)+'" y1="'+pt+'" x2="'+f(X(t.i),1)+'" y2="'+(pt+ihL)+
       '" stroke="'+C.line+'" stroke-width=".5" opacity=".5"/>');
@@ -2122,8 +2222,10 @@ function chartCum(R,cum,c300,i0){
   var step=Math.max(1,Math.floor(R.length/120));
   for(var i=0;i<R.length;i+=step){
     var r=R[i],x1=X(i),x2=X(Math.min(R.length-1,i+step));
+    var pq=pm?pm[r.d]:null;
     var tip=ds8(r.d)+" · 累计(16只) "+f(A[i],0,true)+" 亿 · 累计(300八只) "+
-      f(B[i],0,true)+" 亿 · 当日 "+f(r.nf,1,true)+" 亿 · 上证 "+f(r.idx,2);
+      f(B[i],0,true)+" 亿 · 当日 "+f(r.nf,1,true)+" 亿 · 上证 "+f(r.idx,2)+
+      (pq!=null&&isFinite(pq)?" · 300穿透率 "+f(pq,2)+"%":"");
     o.push('<rect x="'+f(x1,1)+'" y="'+pt+'" width="'+f(Math.max(1,x2-x1),1)+'" height="'+ihL+
       '" fill="transparent" data-tip="'+esc(tip)+'"><title>'+tip+"</title></rect>");
   }
@@ -2248,6 +2350,9 @@ function paintPen(){
   }
   try{chartPen()}catch(e){}
   try{paintPenState()}catch(e){}
+  try{paintPenCard()}catch(e){}
+  /* 穿透率可能晚于历史曲线到达：到了以后重画一次图B，把右轴曲线补上 */
+  try{if(HIST&&HIST.rows&&HIST.rows.length)paintHist()}catch(e){}
 }
 function loadPen(){
   var emb=document.getElementById("ntPen");
@@ -2261,12 +2366,122 @@ function loadPen(){
   }
   return fetchJTO("pen.json?t="+Date.now(),9000).then(function(o){
     if(!o||!o.series||!Object.keys(o.series).length)throw new Error("pen.json 结构异常");
+    /* 版本守卫：云端 pen.json 由 CI 独立生成，可能比页面内嵌快照旧一天
+       （内嵌随 index.html 一起发版，pen.json 由 update.py 单独写）。
+       若无条件覆盖，会把已经算到 T 日的序列回退到 T-1，卡片与图B 日期错位。
+       这里只接受「不旧于当前」的云端数据。 */
+    var curAs=String((PEN.data&&PEN.data.asof)||"");
+    var newAs=String(o.asof||"");
+    if(PEN.ok&&curAs&&newAs&&newAs<curAs){
+      PEN.staleAs=newAs;
+      return;   // 保留内嵌快照，不覆盖
+    }
     PEN.ok=true; PEN.data=o; PEN.src="云端 pen.json"; PEN.err="";
     paintPen();
   }).catch(function(e){
     PEN.err=e.message;
     if(!PEN.ok){PEN.ok=false;paintPen()}
   });
+}
+/* ===== 沪深300 穿透率 · 龙队在场判断（研判结论补充卡） =====
+   主判据 = 近 20 日沪深300 八只 ETF 的净申购额（真流量，剔除净值涨跌）；
+   穿透率只作「渗透深度」确认，并把它的变化拆成「申赎 / 指数 / 净值」三块——
+   指数一跌分母就缩，穿透率会自己涨，所以不能单看它涨跌就判定在进场。 */
+function pen300rows(){
+  return penRows((PEN.data&&PEN.data.series&&PEN.data.series["沪深300"])||[]);
+}
+function nf300Rolling(w){
+  var h=(HIST&&HIST.rows)||[],out=[],s=0;
+  for(var i=0;i<h.length;i++){
+    s+=Number(h[i].nf300)||0;
+    if(i>=w)s-=Number(h[i-w].nf300)||0;
+    if(i>=w-1)out.push(s);
+  }
+  return out;
+}
+function paintPenCard(){
+  if(!$("vPenCard"))return;
+  var rows=pen300rows();
+  if(rows.length<22){
+    $("vpDate").textContent="穿透率序列未载入或不足 22 个交易日";
+    return;
+  }
+  var n=rows.length,cur=rows[n-1];
+  var pen=+cur.pen,fmv=+cur.fmv,COV=(PEN.data.cov&&PEN.data.cov["沪深300"])||0.9386;
+  var aum=(+cur.etf)*COV;
+  var b=rows[n-21],pen0=+b.pen,aum0=(+b.etf)*COV,fmv0=+b.fmv;
+  var dpen=pen-pen0;
+  var w250=rows.slice(-250).map(function(r){return +r.pen});
+  var pct=(w250.filter(function(v){return v<=pen}).length/w250.length)*100;
+  var lo250=Math.min.apply(null,w250),hi250=Math.max.apply(null,w250);
+  w250.sort(function(x,y){return x-y});
+  var med=w250[Math.floor(w250.length/2)];
+
+  var dist=nf300Rolling(20);
+  if(!dist.length){$("vpDate").textContent="净流入序列未载入";return}
+  var cur20=dist[dist.length-1];
+  var q20=(dist.filter(function(v){return v<=cur20}).length/dist.length)*100;
+  var cFlow=aum0>0?pen0*(cur20/aum0):0;
+  var cPrice=fmv0>0?-pen0*Math.log(fmv/fmv0):0;
+  /* 第三项用差额兜底：份额×净值的折算误差与两位小数舍入都落在这里，
+     保证「三项相加 = 穿透率变化」，避免读者自己加总时对不上。 */
+  var cRest=dpen-cFlow-cPrice;
+  var flowShare=(Math.abs(dpen)>1e-9)?(cFlow/dpen*100):null;
+
+  /* 三态：以 20 日净申购额的绝对量与区间分位共同定档，避免把「小幅回补」误读成进场 */
+  var st,tag,cls,lead;
+  if(cur20>200&&q20>=75){st="在进";tag="强度高";cls="in"}
+  else if(cur20>200){st="在进";tag="温和";cls="in"}
+  else if(cur20<-200&&q20<=25){st="在出";tag="强度高";cls="out"}
+  else if(cur20<-200){st="在出";tag="温和";cls="out"}
+  else {st="僵持";tag="区间内";cls="flat"}
+  lead="近 20 日沪深300 八只 ETF 净申购 <b>"+f(cur20,1,true)+" 亿</b>（区间 <b>"+
+    f(q20,0)+"%</b> 分位），穿透率 <b>"+f(pen0,2)+"% → "+f(pen,2)+"%</b>。";
+
+  $("vpDate").innerHTML="份额数据日 <b>"+ds8(cur.d)+"</b> · 穿透率同日（T+1 公布）";
+  var bd=$("vpBadge");
+  bd.className="vpbadge "+cls;
+  bd.innerHTML=st+"<small>"+tag+"</small>";
+  $("vpLead").innerHTML=lead;
+
+  $("vpGrid").innerHTML=
+    '<div class="vpm"><span>沪深300 穿透率</span><b>'+f(pen,2)+'%</b><em>近 1 年 '+f(lo250,2)+
+      '%~'+f(hi250,2)+'%，分位 '+f(pct,1)+'%</em></div>'+
+    '<div class="vpm"><span>20 日净申购（八只）</span><b class="'+(cur20>=0?"up":"down")+'">'+
+      f(cur20,1,true)+' 亿</b><em>区间分位 '+f(q20,0)+'%</em></div>'+
+    '<div class="vpm"><span>穿透率 20 日变化</span><b class="'+(dpen>=0?"up":"down")+'">'+
+      f(dpen,2,true)+'pp</b><em>申赎 '+f(cFlow,2,true)+' · 指数 '+f(cPrice,2,true)+
+      ' · 净值/舍入 '+f(cRest,2,true)+'</em></div>'+
+    '<div class="vpm"><span>八只 ETF 规模</span><b>'+f(aum,0)+' 亿</b><em>20 日 '+
+      (aum0>0?f((aum/aum0-1)*100,1,true)+'%':'--')+'</em></div>';
+
+  $("vpDec").innerHTML="<b>这 "+f(dpen,2,true)+"pp 是怎么来的</b>：申赎贡献 <b>"+f(cFlow,2,true)+
+    "pp</b>、指数涨跌贡献 <b>"+f(cPrice,2,true)+"pp</b>、净值折算与舍入 <b>"+f(cRest,2,true)+"pp</b>。"+
+    (flowShare===null?"（区间过短，不作归因）":
+     flowShare>=80?"<b>几乎全部由真实申购推动</b>，不是分母缩水造成的假上升。":
+     flowShare<=20?"<b>主要来自分母（指数下跌）收缩</b>，资金面并未实质改善——这时穿透率上升不能当成「在进场」。":
+     "<b>分子分母各占一半</b>，需再看绝对金额确认。")+
+    " 八只规模 "+f(aum,0)+" 亿，自由流通市值 "+f(fmv,0)+" 亿。";
+
+  var act;
+  if(st==="在进"){
+    act="<b>指导性判断</b>：被动资金正在实质性加仓，穿透率从 "+f(pen0,2)+"% 抬到 "+f(pen,2)+
+      "%（近 1 年 "+f(pct,0)+"% 分位）——<b>「龙队还在、而且在进」</b>。"+
+      "它说明指数下方有承接力，但<b>不是买入理由</b>，仓位仍按你自己的轮动信号走。"+
+      "若后续 20 日净申购转负、且穿透率跌破近 1 年中位 <b>"+f(med,2)+"%</b>，才是「在出」的确认。";
+  }else if(st==="在出"){
+    act="<b>指导性判断</b>：被动资金正在撤离，穿透率 "+f(pen0,2)+"% → "+f(pen,2)+
+      "%（近 1 年 "+f(pct,0)+"% 分位）——<b>「龙队正在出」</b>。"+
+      "但出货不等于立刻下跌：历史上份额大幅流出后，指数仍可能因其他资金维持震荡。"+
+      "把这条当<b>风险背景上调</b>，不当卖出触发器；回到「在进」需要 20 日净申购转正并站上 <b>"+
+      f(med,2)+"%</b>。";
+  }else{
+    act="<b>指导性判断</b>：20 日净申购落在 ±200 亿的僵持区，穿透率 "+f(pen0,2)+"% → "+
+      f(pen,2)+"% 基本走平——<b>「龙队在，但没动手」</b>。"+
+      "这种状态下穿透率的读数最没有信息量，等它自己走出区间再说；"+
+      "上破近 1 年中位 <b>"+f(med,2)+"%</b> 记「回补」，下破记「撤离」。";
+  }
+  $("vpAct").innerHTML=act;
 }
 function chartPen(){
   var box=$("cPen"); if(!box)return;
@@ -2423,6 +2638,8 @@ function paintHist(){
   paintRange();
   try{paintHistAnalysis(R)}catch(e){}
   try{paintAmvNote(R)}catch(e){}
+  /* 历史序列到位后补算穿透率卡（它需要 nf300 的 20 日滚动分布） */
+  try{paintPenCard()}catch(e){}
 }
 function clearPreset(){
   document.querySelectorAll(".zbtn").forEach(function(b){b.classList.remove("pri")});
@@ -2760,8 +2977,14 @@ function loadHistory(){
   .then(function(h){
     if(h&&h.rows&&h.rows.length){
       var n=HIST.rows.length;
-      var same=n===h.rows.length&&n&&HIST.rows[n-1].d===h.rows[h.rows.length-1].d;
-      if(!same){setHistory(h.rows,"云端 history.json")}
+      var lastEmb=n?String(HIST.rows[n-1].d):"";
+      var lastRem=String(h.rows[h.rows.length-1].d||"");
+      /* 版本守卫：云端 history.json 由 CI 单独写，可能比内嵌快照旧一天。
+         只比「行数是否相同」会漏判——若云端多一天但末行更早（或反之），
+         无条件覆盖会让曲线与穿透率卡回退到 T-1。这里按末行日期定新旧。 */
+      var same=n===h.rows.length&&lastEmb===lastRem;
+      if(!same&&lastRem>=lastEmb){setHistory(h.rows,"云端 history.json")}
+      else if(!same&&lastRem<lastEmb){NET.histStale=lastRem}
       NET.hist="云端 "+h.rows.length+" 天"+(n?"（内嵌兜底可用）":"");
       try{updateStatus()}catch(e2){}
     }else if(!HIST.rows.length){NET.hist="空数据"}

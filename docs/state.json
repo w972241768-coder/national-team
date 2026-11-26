@@ -1,9 +1,9 @@
 {
-  "gen": "20261125-224735",
+  "gen": "20261126-164230",
   "asof": "20261125",
   "rows": 2889,
-  "built_cst": "2026-11-25 22:47 CST",
-  "source": "sse",
+  "built_cst": "2026-11-26 16:42 CST",
+  "source": "baseline",
   "sse_probe": {
     "ok": true,
     "date": "2026-11-25",
